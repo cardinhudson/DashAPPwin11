@@ -1,0 +1,38 @@
+# Arquivos de dados grandes (txt) - apenas os que excedem 100MB do GitHub
+Extracoes/KE5Z/ke5z*.txt
+Extracoes/KSBB/ksbb*.txt
+
+# Arquivos de build e distribuição
+build/
+dist/
+.venv_build/
+*.spec
+
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
