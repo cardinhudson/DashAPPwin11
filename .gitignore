@@ -1,6 +1,8 @@
 # Arquivos de dados grandes (>100MB) - excluídos do Git
 Extracoes/KE5Z/ke5z*.txt
 Extracoes/KSBB/ksbb*.txt
+dist/*/Extracoes/KE5Z/ke5z*.txt
+dist/*/Extracoes/KSBB/ksbb*.txt
 
 # Arquivos de build e executáveis
 _internal/
