@@ -202,4 +202,3 @@ Para dúvidas ou problemas:
 
 **Dashboard KE5Z** - Sistema Avançado de Análise Financeira
 Desenvolvido com Streamlit e otimizado para máxima performance.
-
