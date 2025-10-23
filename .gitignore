@@ -5,7 +5,6 @@ Extracoes/KSBB/ksbb*.txt
 # Arquivos de build e executáveis
 _internal/
 build/
-dist/
 *.exe
 *.pkg
 *.pyz

@@ -1,0 +1,9 @@
+{
+  "admin": {
+    "senha_hash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "tipo": "administrador",
+    "status": "aprovado",
+    "data_criacao": "2025-10-22T17:38:06.916365",
+    "aprovado_em": "2025-10-22T17:38:06.916605"
+  }
+}
