@@ -1,10 +1,17 @@
-# Arquivos de dados grandes (txt) - apenas os que excedem 100MB do GitHub
+# Arquivos de dados grandes (>100MB) - excluídos do Git
 Extracoes/KE5Z/ke5z*.txt
 Extracoes/KSBB/ksbb*.txt
 
-# Arquivos de build e distribuição
+# Arquivos de build e executáveis
+_internal/
 build/
 dist/
+*.exe
+*.pkg
+*.pyz
+*.dll
+
+# Ambiente virtual de build
 .venv_build/
 *.spec
 
