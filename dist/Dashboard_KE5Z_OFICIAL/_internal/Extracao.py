@@ -99,12 +99,139 @@ if not os.path.exists(pasta):
     exit(1)
 
 print(f"Pasta encontrada: {pasta}")
+
+# ================== FUNÇÃO DE PADRONIZAÇÃO DE COLUNAS ==================
+def padronizar_colunas(df, arquivo_nome=""):
+    """
+    Padroniza nomes das colunas para garantir compatibilidade.
+    Mapeia variações de nomes para os nomes fixos usados no código.
+    """
+    if df is None or len(df.columns) == 0:
+        return df
+    
+    # Remover espaços em branco dos nomes das colunas primeiro
+    df.columns = df.columns.str.strip()
+    
+    # Mapeamento de nomes possíveis para nomes fixos (mantendo os nomes atuais do código)
+    mapeamento_colunas = {
+        # Coluna 'Ano'
+        'Ano': ['ano', 'Ano', 'ANO', 'year', 'Year', 'YEAR'],
+        
+        # Coluna 'Período'
+        'Período': ['período', 'Periodo', 'PERÍODO', 'PERIODO', 'period', 'Period', 
+                   'PERIOD', 'mes', 'Mes', 'MES', 'mês', 'Mês'],
+        
+        # Coluna 'Nº conta'
+        'Nº conta': ['nº conta', 'Nº conta', 'Nºconta', 'nºconta', 'conta', 'Conta', 
+                     'CONTA', 'Nº Conta', 'No conta', 'No. conta'],
+        
+        # Coluna 'Centro cst'
+        'Centro cst': ['centro cst', 'Centro cst', 'Centrocst', 'centrocst', 'CENTRO CST',
+                      'centro', 'Centro', 'CENTRO', 'centro de custo', 'Centro de Custo'],
+        
+        # Coluna 'Texto'
+        'Texto': ['texto', 'Texto', 'TEXTO', 'descrição', 'Descrição', 'DESCRIÇÃO',
+                 'texto breve', 'Texto breve', 'TEXTO BREVE', 'descrição material'],
+        
+        # Coluna 'Fornec.'
+        'Fornec.': ['fornec.', 'Fornec.', 'FORNEC.', 'fornecedor código', 'Fornecedor código',
+                   'FORNECEDOR CÓDIGO', 'fornec', 'Fornec', 'FORNEC'],
+        
+        # Coluna 'Material'
+        'Material': ['material', 'Material', 'MATERIAL', 'mat', 'Mat', 'MAT'],
+        
+        # Coluna 'Item'
+        'Item': ['item', 'Item', 'ITEM'],
+        
+        # Coluna 'Cliente'
+        'Cliente': ['cliente', 'Cliente', 'CLIENTE'],
+        
+        # Coluna 'doc.ref'
+        'doc.ref': ['doc.ref', 'doc.ref.', 'Doc.ref.', 'Doc.ref', 'DOC.REF', 'DOC.REF.',
+                   'documento', 'Documento', 'DOCUMENTO', 'doc ref', 'Doc Ref'],
+        
+        # Coluna 'Dt.lçto.'
+        'Dt.lçto.': ['dt.lçto.', 'Dt.lçto.', 'DT.LÇTO.', 'data', 'Data', 'DATA',
+                    'data lançamento', 'Data Lançamento', 'data de lançamento'],
+        
+        # Coluna 'Em MCont.'
+        'Em MCont.': ['em mcont.', 'Em MCont.', 'EM MCONT.', 'valor', 'Valor', 'VALOR',
+                     'montante', 'Montante', 'MONTANTE', 'em mcont', 'Em MCont'],
+        
+        # Coluna 'Qtd.'
+        'Qtd.': ['qtd.', 'Qtd.', 'QTD.', 'quantidade', 'Quantidade', 'QUANTIDADE',
+                'qtd', 'Qtd', 'QTD'],
+        
+        # Coluna 'Cen.lucro'
+        'Cen.lucro': ['cen.lucro', 'Cen.lucro', 'CEN.LUCRO', 'centro lucro', 'Centro Lucro',
+                     'centro de lucro', 'Centro de Lucro'],
+        
+        # Coluna 'Usuário'
+        'Usuário': ['usuário', 'Usuário', 'USUÁRIO', 'usuario', 'Usuario', 'USUARIO',
+                   'user', 'User', 'USER'],
+        
+        # Coluna 'Tipo'
+        'Tipo': ['tipo', 'Tipo', 'TIPO', 'type', 'Type', 'TYPE'],
+        
+        # Coluna 'Doc.compra'
+        'Doc.compra': ['doc.compra', 'Doc.compra', 'DOC.COMPRA', 'documento compra',
+                      'Documento Compra', 'doc compra'],
+    }
+    
+    # Criar dicionário de renomeação
+    renomeacao = {}
+    colunas_originais = df.columns.tolist()
+    
+    # Para cada nome fixo esperado, procurar nas colunas originais
+    for nome_fixo, variações in mapeamento_colunas.items():
+        # Se a coluna já existe com o nome correto, não precisa renomear
+        if nome_fixo in colunas_originais:
+            continue
+        
+        # Procurar por variações
+        coluna_encontrada = None
+        
+        # 1. Busca exata (case-insensitive)
+        for col_original in colunas_originais:
+            if col_original.strip().lower() in [v.lower() for v in variações]:
+                coluna_encontrada = col_original
+                break
+        
+        # 2. Busca parcial (se não encontrou exato)
+        if not coluna_encontrada:
+            for col_original in colunas_originais:
+                col_lower = col_original.strip().lower()
+                for variacao in variações:
+                    if variacao.lower() in col_lower or col_lower in variacao.lower():
+                        coluna_encontrada = col_original
+                        break
+                if coluna_encontrada:
+                    break
+        
+        # 3. Se encontrou, adicionar ao mapeamento de renomeação
+        # Verificar se a coluna já não foi mapeada anteriormente
+        if coluna_encontrada and coluna_encontrada not in renomeacao.keys():
+            renomeacao[coluna_encontrada] = nome_fixo
+            if arquivo_nome:
+                print(f"   🔄 '{coluna_encontrada}' → '{nome_fixo}'")
+    
+    # Aplicar renomeação
+    if renomeacao:
+        df.rename(columns=renomeacao, inplace=True)
+        print(f"   ✅ {len(renomeacao)} coluna(s) padronizada(s)")
+    
+    return df
+# ======================================================================
+
 # Lista para armazenar os DataFrames
 dataframes = []
 
-# Iterar sobre todos os arquivos na pasta
+# Iterar sobre todos os arquivos na pasta (sem limite de quantidade)
 arquivos_txt = [f for f in os.listdir(pasta) if f.endswith('.txt')]
-print(f"Arquivos .txt encontrados: {len(arquivos_txt)}")
+# Ordenar arquivos por nome para garantir ordem consistente
+arquivos_txt = sorted(arquivos_txt)
+print(f"📁 Arquivos .txt encontrados: {len(arquivos_txt)}")
+print(f"   Arquivos serão processados em ordem alfabética")
 
 for i, arquivo in enumerate(arquivos_txt, 1):
     caminho_arquivo = os.path.join(pasta, arquivo)
@@ -117,55 +244,119 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         tamanho_mb = os.path.getsize(caminho_arquivo) / (1024 * 1024)
         print(f"Tamanho: {tamanho_mb:.1f} MB")
         
-        # Ler o arquivo em um DataFrame com tratamento de erro
+        # Ler o arquivo em um DataFrame com tratamento de erro múltiplo
         print("Carregando dados...")
-        df = pd.read_csv(
-            caminho_arquivo, 
-            sep='\t', 
-            skiprows=9,
-            encoding='latin1', 
-            engine='c',  # Engine C é mais rápida para arquivos grandes
-            low_memory=False  # Evitar warnings de tipos mistos
-        )
+        df = None
+        
+        # Tentar diferentes valores de skiprows (alguns arquivos podem ter cabeçalhos diferentes)
+        skiprows_tentativas = [9, 8, 10, 7, 11]
+        
+        for skiprows_val in skiprows_tentativas:
+            try:
+                df_temp = pd.read_csv(
+                    caminho_arquivo, 
+                    sep='\t', 
+                    skiprows=skiprows_val,
+                    encoding='latin1', 
+                    engine='c',
+                    low_memory=False
+                )
+                # Verificar se leu dados válidos (pelo menos algumas colunas e linhas)
+                if len(df_temp.columns) > 5 and len(df_temp) > 0:
+                    df = df_temp
+                    if skiprows_val != 9:
+                        print(f"   ℹ️  Arquivo lido com skiprows={skiprows_val} (padrão é 9)")
+                    break
+            except Exception as e:
+                if skiprows_val == skiprows_tentativas[-1]:
+                    # Última tentativa falhou, usar engine python como fallback
+                    try:
+                        df = pd.read_csv(
+                            caminho_arquivo, 
+                            sep='\t', 
+                            skiprows=9,
+                            encoding='latin1', 
+                            engine='python',
+                            low_memory=False
+                        )
+                        print(f"   ℹ️  Arquivo lido com engine python (fallback)")
+                        break
+                    except Exception as e2:
+                        raise Exception(f"Não foi possível ler o arquivo. Erros: {str(e)[:100]} | {str(e2)[:100]}")
+                continue
+        
+        if df is None or len(df) == 0:
+            raise Exception("Arquivo lido mas está vazio ou sem colunas válidas")
+        
         print(f"Carregado: {len(df):,} registros, {len(df.columns)} colunas")
         
-        # mudar o nome da coluna Doc.ref. pelo seu índice
-        if len(df.columns) > 9:
+        # APLICAR PADRONIZAÇÃO DE COLUNAS (antes de processar)
+        print("🔧 Padronizando nomes das colunas...")
+        df = padronizar_colunas(df, arquivo_nome=arquivo)
+        
+        # mudar o nome da coluna Doc.ref. pelo seu índice (backup caso não tenha sido padronizada)
+        if len(df.columns) > 9 and 'doc.ref' not in df.columns:
             df.rename(columns={df.columns[9]: 'doc.ref'}, inplace=True)
         
         print(f"Processando dados de {arquivo}...")
-        
-        # Remover espaços em branco dos nomes das colunas
-        df.columns = df.columns.str.strip()
         print("Limpando dados...")
         
-        # Filtrar a coluna 'Ano' com valores não nulos e diferentes de 0
-        df = df[df['Ano'].notna() & (df['Ano'] != 0)]
+        # Verificar se coluna 'Ano' existe antes de filtrar
+        if 'Ano' not in df.columns:
+            print(f"⚠️  AVISO: Coluna 'Ano' não encontrada em {arquivo} após padronização!")
+            print(f"   Colunas disponíveis: {list(df.columns)[:10]}...")
+            print(f"   Continuando sem filtro de Ano...")
+        else:
+            # Filtrar a coluna 'Ano' com valores não nulos e diferentes de 0
+            # Usar .copy() para evitar SettingWithCopyWarning
+            antes_filtro = len(df)
+            df = df[df['Ano'].notna() & (df['Ano'] != 0)].copy()
+            depois_filtro = len(df)
+            if antes_filtro != depois_filtro:
+                print(f"   Removidos {antes_filtro - depois_filtro:,} registros com Ano inválido")
         print(f"Após filtro Ano: {len(df):,} registros")
+        
+        # Verificar e processar coluna 'Em MCont.'
+        if 'Em MCont.' not in df.columns:
+            print(f"❌ ERRO: Coluna 'Em MCont.' não encontrada em {arquivo} após padronização!")
+            print(f"   Colunas disponíveis: {list(df.columns)}")
+            raise KeyError(f"Coluna 'Em MCont.' não encontrada. Colunas disponíveis: {list(df.columns)}")
         
         # Substituir ',' por '.' e remover pontos de separação de milhar
         print("Convertendo coluna Em MCont...")
-        df['Em MCont.'] = (
-            df['Em MCont.']
-            .str.replace('.', '', regex=False)
-            .str.replace(',', '.', regex=False)
-        )
+        # Verificar se a coluna é string antes de fazer replace
+        if df['Em MCont.'].dtype == 'object':
+            df['Em MCont.'] = (
+                df['Em MCont.']
+                .astype(str)
+                .str.replace('.', '', regex=False)
+                .str.replace(',', '.', regex=False)
+            )
         # Converter a coluna para float, tratando erros
         df['Em MCont.'] = pd.to_numeric(df['Em MCont.'], errors='coerce')
         # Substituir valores NaN por 0 (ou outro valor padrão, se necessário)
         df['Em MCont.'] = df['Em MCont.'].fillna(0)
 
-        # Substituir ',' por '.' e remover pontos de separação de milhar
-        print("Convertendo coluna Qtd...")
-        df['Qtd.'] = (
-            df['Qtd.']
-            .str.replace('.', '', regex=False)
-            .str.replace(',', '.', regex=False)
-        )
-        # Converter a coluna para float, tratando erros
-        df['Qtd.'] = pd.to_numeric(df['Qtd.'], errors='coerce')
-        # Substituir valores NaN por 0 (ou outro valor padrão, se necessário)
-        df['Qtd.'] = df['Qtd.'].fillna(0)
+        # Verificar e processar coluna 'Qtd.'
+        if 'Qtd.' not in df.columns:
+            print(f"⚠️  AVISO: Coluna 'Qtd.' não encontrada em {arquivo} após padronização!")
+            print(f"   Criando coluna 'Qtd.' com valores zero...")
+            df['Qtd.'] = 0
+        else:
+            # Substituir ',' por '.' e remover pontos de separação de milhar
+            print("Convertendo coluna Qtd...")
+            # Verificar se a coluna é string antes de fazer replace
+            if df['Qtd.'].dtype == 'object':
+                df['Qtd.'] = (
+                    df['Qtd.']
+                    .astype(str)
+                    .str.replace('.', '', regex=False)
+                    .str.replace(',', '.', regex=False)
+                )
+            # Converter a coluna para float, tratando erros
+            df['Qtd.'] = pd.to_numeric(df['Qtd.'], errors='coerce')
+            # Substituir valores NaN por 0 (ou outro valor padrão, se necessário)
+            df['Qtd.'] = df['Qtd.'].fillna(0)
         
         # Adicionar o DataFrame à lista
         dataframes.append(df)
@@ -175,16 +366,42 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         total_em_mcont = df['Em MCont.'].sum()
         print(f"Total Em MCont. em {arquivo}: {total_em_mcont:,.2f}")
         
+    except KeyError as e:
+        print(f"❌ ERRO DE COLUNA ao processar {arquivo}: {str(e)}")
+        print(f"   Este arquivo tem uma estrutura diferente dos demais.")
+        print(f"   Verifique se o arquivo está no formato correto.")
+        print(f"   Continuando com os próximos arquivos...")
+        continue
     except Exception as e:
-        print(f"Erro ao processar {arquivo}: {str(e)}")
+        print(f"❌ Erro ao processar {arquivo}: {str(e)}")
+        print(f"   Tipo de erro: {type(e).__name__}")
+        import traceback
+        print(f"   Detalhes completos do erro:")
+        traceback.print_exc()
+        print(f"   Continuando com os próximos arquivos...")
         continue
 
+# Resumo do processamento
+total_arquivos = len(arquivos_txt)
+arquivos_processados = len(dataframes)
+arquivos_falhados = total_arquivos - arquivos_processados
+
+print("\n" + "="*80)
+print("📊 RESUMO DO PROCESSAMENTO")
+print("="*80)
+print(f"✅ Arquivos processados com sucesso: {arquivos_processados}/{total_arquivos}")
+if arquivos_falhados > 0:
+    print(f"❌ Arquivos com erro: {arquivos_falhados}/{total_arquivos}")
+print(f"📁 Total de arquivos encontrados: {total_arquivos}")
+print("="*80 + "\n")
 
 # Concatenar todos os DataFrames em um único
 if dataframes:
+    print(f"🔄 Concatenando {len(dataframes)} DataFrames...")
     df_total = pd.concat(dataframes, ignore_index=True)
+    print(f"✅ Concatenação concluída: {len(df_total):,} registros totais")
 else:
-    print("AVISO: Nenhum arquivo .txt encontrado em KE5Z.")
+    print("⚠️  AVISO: Nenhum arquivo .txt encontrado ou processado em KE5Z.")
     df_total = pd.DataFrame()
 
 

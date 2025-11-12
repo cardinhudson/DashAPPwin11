@@ -324,7 +324,45 @@
 │  │   ├── Filtros inteligentes para valores não-zero                          │
 │  │   ├── Interface limpa sem mensagens de debug                             │
 │  │   ├── Top N dinâmico para análises                                        │
-│  │   └── Tabelas pivot otimizadas                                            │
+│  │   ├── Tabelas pivot otimizadas                                            │
+│  │   ├── Caminhos inteligentes para executável                               │
+│  │   └── Correções isoladas sem impacto                                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔧 CORREÇÕES E MELHORIAS IMPLEMENTADAS
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            CORREÇÕES CRÍTICAS                                  │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  🔧 PÁGINA "SOBRE O PROJETO"                                                  │
+│  │   ├── Problema: Carregamento de código-fonte falhava no executável        │
+│  │   ├── Solução: Detecção automática de ambiente                            │
+│  │   ├── Executável: os.path.dirname(sys.executable)                         │
+│  │   ├── Desenvolvimento: Diretório do projeto                               │
+│  │   └── Fallbacks: Caminhos relativos como backup                           │
+│  │                                                                             │
+│  📁 CAMINHOS INTELIGENTES                                                     │
+│  │   ├── Detecção automática: hasattr(sys, '_MEIPASS')                       │
+│  │   ├── Executável: Arquivos Python fora do _internal/                     │
+│  │   ├── Desenvolvimento: Diretório do projeto                               │
+│  │   └── Verificação: os.path.exists() antes de carregar                    │
+│  │                                                                             │
+│  🎯 CORREÇÕES ISOLADAS                                                        │
+│  │   ├── Zero impacto em extração de dados                                   │
+│  │   ├── Zero impacto em dashboards                                          │
+│  │   ├── Zero impacto em autenticação                                        │
+│  │   ├── Zero impacto em cache                                               │
+│  │   └── Zero impacto em outras páginas                                      │
+│  │                                                                             │
+│  🛡️ FALLBACKS SEGUROS                                                        │
+│  │   ├── Compatibilidade total executável/desenvolvimento                     │
+│  │   ├── Portabilidade em qualquer PC Windows 10/11                         │
+│  │   ├── Tratamento robusto de erros                                         │
+│  │   └── Mensagens informativas para debug                                   │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 

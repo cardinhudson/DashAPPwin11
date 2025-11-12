@@ -4,6 +4,8 @@ import pandas as pd
 import os
 import sys
 import altair as alt
+from io import BytesIO
+import base64
 import plotly.graph_objects as go
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
                          eh_administrador, verificar_status_aprovado,
@@ -635,23 +637,20 @@ st.caption(f"📊 Filtragem aplicada: {linhas_originais} → {linhas_filtradas} 
 # Botão de download da Tabela Dinâmica (logo abaixo da tabela)
 if st.button("📥 Baixar Tabela Dinâmica (Excel)", use_container_width=True, key="download_pivot"):
     with st.spinner("Gerando arquivo da tabela dinâmica..."):
-        # Função para exportar para Excel
-        def exportar_excel_pivot(df, nome_arquivo):
-            from io import BytesIO
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=True, sheet_name='Tabela_Dinamica')
-            output.seek(0)
-            return output.getvalue()
-        
-        excel_data_pivot = exportar_excel_pivot(df_pivot_filtered, 'KE5Z_tabela_dinamica_filtrada.xlsx')
-        
-        # Forçar download usando JavaScript
-        import base64
-        b64 = base64.b64encode(excel_data_pivot).decode()
-        href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="KE5Z_tabela_dinamica_filtrada.xlsx">💾 Clique aqui para baixar a Tabela Dinâmica Filtrada</a>'
-        st.markdown(href, unsafe_allow_html=True)
-        st.success("✅ Tabela Dinâmica gerada! Clique no link acima para baixar.")
+        try:
+            # Obter pasta Downloads do usuário
+            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+            file_name = "KE5Z_tabela_dinamica_filtrada.xlsx"
+            file_path = os.path.join(downloads_path, file_name)
+            
+            # Salvar arquivo diretamente na pasta Downloads
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                df_pivot_filtered.to_excel(writer, index=True, sheet_name='Tabela_Dinamica')
+            
+            st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+            st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+        except Exception as e:
+            st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Exibir o DataFrame filtrado (limitado para performance)
 st.subheader("Tabela Filtrada")
@@ -667,23 +666,20 @@ st.dataframe(df_display, use_container_width=True)
 # Botão de download da Tabela Filtrada (logo abaixo da tabela)
 if st.button("📥 Baixar Tabela Filtrada (Excel)", use_container_width=True, key="download_filtered"):
     with st.spinner("Gerando arquivo da tabela filtrada..."):
-        # Função para exportar tabela filtrada
-        def exportar_excel_filtrada(df, nome_arquivo):
-            from io import BytesIO
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False, sheet_name='Dados_Filtrados')
-            output.seek(0)
-            return output.getvalue()
-        
-        excel_data_filtrada = exportar_excel_filtrada(df_filtrado, 'KE5Z_tabela_filtrada.xlsx')
-        
-        # Forçar download usando JavaScript
-        import base64
-        b64 = base64.b64encode(excel_data_filtrada).decode()
-        href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="KE5Z_tabela_filtrada.xlsx">💾 Clique aqui para baixar a Tabela Filtrada</a>'
-        st.markdown(href, unsafe_allow_html=True)
-        st.success("✅ Tabela Filtrada gerada! Clique no link acima para baixar.")
+        try:
+            # Obter pasta Downloads do usuário
+            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+            file_name = "KE5Z_tabela_filtrada.xlsx"
+            file_path = os.path.join(downloads_path, file_name)
+            
+            # Salvar arquivo diretamente na pasta Downloads
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                df_filtrado.to_excel(writer, index=False, sheet_name='Dados_Filtrados')
+            
+            st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+            st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+        except Exception as e:
+            st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Tabela de soma por Types separada por Período (apenas valores ≠ 0)
 if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', 'Período']):
@@ -694,13 +690,15 @@ if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', '
     soma_por_type_periodo = df_filtrado.groupby(['Type 05', 'Type 06', 'Type 07', 'Período'])['Valor'].sum().reset_index()
     
     # Pivotar para ter Períodos como colunas
-    tabela_pivot = soma_por_type_periodo.pivot_table(
+    tabela_pivot_raw = soma_por_type_periodo.pivot_table(
         index=['Type 05', 'Type 06', 'Type 07'], 
         columns='Período', 
         values='Valor', 
         aggfunc='sum', 
         fill_value=0
     ).reset_index()
+    # Cópia para exibição formatada
+    tabela_pivot = tabela_pivot_raw.copy()
     
     # Calcular total por linha
     numeric_cols = tabela_pivot.select_dtypes(include=['number']).columns
@@ -722,26 +720,29 @@ if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', '
     else:
         st.info("Nenhum período encontrado nos dados filtrados.")
     
-    # Botão de download da Tabela de Soma por Types (logo abaixo da tabela)
+    # Botão de download nativo da Tabela de Soma por Types (usa dados não formatados)
+    with st.spinner("Gerando arquivo da soma por types..."):
+        output_types = BytesIO()
+        with pd.ExcelWriter(output_types, engine='openpyxl') as writer:
+            tabela_pivot_raw.to_excel(writer, index=False, sheet_name='Soma_por_Types')
+        output_types.seek(0)
+
     if st.button("📥 Baixar Soma por Types (Excel)", use_container_width=True, key="download_types"):
         with st.spinner("Gerando arquivo da soma por types..."):
-            # Função para exportar soma por types
-            def exportar_excel_types(df, nome_arquivo):
-                from io import BytesIO
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Soma_por_Types')
-                output.seek(0)
-                return output.getvalue()
-            
-            excel_data_types = exportar_excel_types(soma_por_type_completa, 'KE5Z_soma_por_types.xlsx')
-            
-            # Forçar download usando JavaScript
-            import base64
-            b64 = base64.b64encode(excel_data_types).decode()
-            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="KE5Z_soma_por_types.xlsx">💾 Clique aqui para baixar a Soma por Types</a>'
-            st.markdown(href, unsafe_allow_html=True)
-            st.success("✅ Soma por Types gerada! Clique no link acima para baixar.")
+            try:
+                # Obter pasta Downloads do usuário
+                downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                file_name = "KE5Z_soma_por_types.xlsx"
+                file_path = os.path.join(downloads_path, file_name)
+                
+                # Salvar arquivo diretamente na pasta Downloads
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    tabela_pivot_raw.to_excel(writer, index=False, sheet_name='Soma_por_Types')
+                
+                st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+                st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+            except Exception as e:
+                st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Footer
 st.markdown("---")

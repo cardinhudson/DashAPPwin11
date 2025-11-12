@@ -195,6 +195,8 @@
 │  📊 3.500+ Linhas Código   ⚡ 68% Otimização                  │
 │  🔄 Cache Multi-Nível      💾 Persistência Disco               │
 │  🌐 Cloud/Local            🛡️ Fallbacks Seguros               │
+│  🔧 Caminhos Inteligentes  📁 Detecção Automática Ambiente    │
+│  🎯 Correções Isoladas     ⚡ Performance Otimizada            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -234,6 +236,26 @@
 │  🔄 Transformação TXT→Parquet: 10x menor                       │
 │  🛡️ Segurança Downloads: Limites inteligentes                 │
 │  📊 Filtros Dinâmicos: Cascata + Cache + Performance         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔧 SLIDE 13.1: CORREÇÕES E MELHORIAS IMPLEMENTADAS
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CORREÇÕES CRÍTICAS                          │
+├─────────────────────────────────────────────────────────────────┤
+│  🔧 Página "Sobre o Projeto": Carregamento de código-fonte    │
+│  📁 Caminhos Inteligentes: Detecção automática executável     │
+│  🎯 Correções Isoladas: Zero impacto em outras funcionalidades │
+│  🛡️ Fallbacks Seguros: Compatibilidade total                 │
+│                                                                 │
+│  🖥️ Executável: os.path.dirname(sys.executable)              │
+│  💻 Desenvolvimento: Diretório do projeto                     │
+│  📦 Portabilidade: Funciona em qualquer PC Windows 10/11     │
+│  ⚡ Performance: Não afeta extração, dashboards, autenticação  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

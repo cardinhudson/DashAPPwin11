@@ -30,569 +30,966 @@ exibir_header_usuario()
 # Título principal
 st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
-    <h1 style="color: white; font-size: 3rem; margin: 0;">📦 Guia de Empacotamento</h1>
-    <h3 style="color: #f0f0f0; margin: 0;">Dashboard KE5Z Desktop</h3>
+    <h1 style="color: white; font-size: 3rem; margin: 0;">📦 Guia Definitivo de Empacotamento</h1>
+    <h3 style="color: #f0f0f0; margin: 0;">Dashboard KE5Z Desktop - Versão 4.0</h3>
     <p style="color: #e0e0e0; font-size: 1.2rem; margin-top: 1rem;">
-        Instruções completas para criar executáveis desktop independentes
+        Guia Completo e Unificado para Qualquer IA
     </p>
 </div>
 """, unsafe_allow_html=True)
 
+# Renderizar o conteúdo do guia em seções
+st.markdown("# 🚀 GUIA DEFINITIVO DE EMPACOTAMENTO - DASHBOARD KE5Z")
+st.markdown("## Versão 4.0 - Guia Completo e Unificado para Qualquer IA")
+st.markdown("---")
+
 # Índice
-st.markdown("---")
-st.subheader("📋 Índice")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("""
-    **🎯 Básico:**
-    - [Pré-requisitos](#pré-requisitos)
-    - [Estrutura do Projeto](#estrutura-do-projeto)
-    - [Configuração de Caminhos](#configuração-de-caminhos)
-    """)
-
-with col2:
-    st.markdown("""
-    **🛠️ Técnico:**
-    - [Processo de Empacotamento](#processo-de-empacotamento)
-    - [Arquivo .spec Personalizado](#arquivo-spec-personalizado)
-    - [Verificação e Testes](#verificação-e-testes)
-    """)
-
-with col3:
-    st.markdown("""
-    **🚀 Avançado:**
-    - [Solução de Problemas](#solução-de-problemas)
-    - [Distribuição](#distribuição)
-    - [Checklist Completo](#checklist-completo)
-    """)
-
-# Seção 1: Pré-requisitos
-st.markdown("---")
-st.header("1. 📋 Pré-requisitos")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("🖥️ Sistema Operacional")
-    st.markdown("""
-    - **Windows 10/11** (64-bit)
-    - **Python 3.8+** (apenas para desenvolvimento)
-    - **Git** (opcional, para controle de versão)
-    - **8GB RAM** mínimo recomendado
-    - **2GB espaço livre** para build
-    """)
-
-with col2:
-    st.subheader("🐍 Dependências Python")
-    st.code("""
-# Instalar dependências principais
-pip install streamlit pandas plotly pyarrow openpyxl
-
-# Instalar ferramenta de empacotamento
-pip install streamlit-desktop-app
-
-# Dependências adicionais (se necessário)
-pip install altair numpy matplotlib
-    """, language="bash")
-
-# Seção 2: Estrutura do Projeto
-st.markdown("---")
-st.header("2. 📁 Estrutura do Projeto")
-
+st.markdown("## 📋 **ÍNDICE COMPLETO**")
 st.markdown("""
-### 🏗️ Estrutura Recomendada
-```
-MeuProjeto/
-├── app.py                    # Aplicação principal Streamlit
-├── auth_simple.py           # Sistema de autenticação
-├── Extracao.py              # Script de processamento de dados
-├── requirements.txt         # Dependências Python
-├── Dashboard_KE5Z_Desktop.spec  # Arquivo de configuração PyInstaller
-├── pages/                   # Páginas do Streamlit
-│   ├── 1_Dash_Mes.py
-│   ├── 2_IUD_Assistant.py
-│   └── ...
-├── KE5Z/                    # Dados processados
-│   ├── KE5Z.parquet
-│   └── KE5Z_waterfall.parquet
-├── Extracoes/               # Dados brutos
-│   ├── KE5Z/
-│   └── KSBB/
-├── arquivos/                # Arquivos Excel gerados
-├── usuarios.json            # Dados de usuários
-├── dados_equipe.json        # Configurações
-├── Dados SAPIENS.xlsx       # Dados auxiliares
-└── Fornecedores.xlsx        # Dados auxiliares
-```
+1. [Visão Geral](#1-visão-geral)
+2. [Pré-requisitos](#2-pré-requisitos)
+3. [Estrutura do Projeto](#3-estrutura-do-projeto)
+4. [Configuração de Caminhos](#4-configuração-de-caminhos)
+5. [Processo de Empacotamento](#5-processo-de-empacotamento)
+6. [Estrutura Final da Pasta dist](#6-estrutura-final-da-pasta-dist)
+7. [Verificação e Testes](#7-verificação-e-testes)
+8. [Solução de Problemas](#8-solução-de-problemas)
+9. [Distribuição](#9-distribuição)
+10. [Checklist Completo](#10-checklist-completo)
 """)
 
-# Seção 3: Configuração de Caminhos
 st.markdown("---")
-st.header("3. 🔧 Configuração de Caminhos")
 
+# Seção 1: Visão Geral
+st.markdown("## 1. VISÃO GERAL")
+st.markdown("### 🎯 **OBJETIVO DESTE GUIA**")
+st.markdown("Este é o guia **DEFINITIVO** e **UNIFICADO** para empacotamento do Dashboard KE5Z. Foi criado para que **QUALQUER IA** possa seguir passo a passo e reproduzir exatamente o mesmo resultado.")
+
+st.markdown("### ✅ **O QUE ESTE GUIA GARANTE**")
 st.markdown("""
-### ⚠️ **CRÍTICO**: Padrão de Caminhos Relativos
+- ✅ Executável standalone funcionando 100%
+- ✅ Compatibilidade total com Windows 10/11
+- ✅ Todas as funcionalidades preservadas
+- ✅ Estrutura de pastas correta (_internal)
+- ✅ Sistema de autenticação funcional
+- ✅ Processamento de dados operacional
+- ✅ Múltiplas páginas com navegação
+- ✅ Distribuição simples (1 pasta)
+""")
 
-**TODOS os caminhos devem ser relativos e usar `sys._MEIPASS` para detectar execução em PyInstaller.**
+st.markdown("### 🔑 **PRINCÍPIOS FUNDAMENTAIS**")
+st.markdown("#### **1. Estrutura _internal (CRÍTICO)**")
+st.markdown("O PyInstaller cria uma estrutura específica:")
+st.code("""
+dist/
+└── Dashboard_KE5Z_OFICIAL/
+    ├── Dashboard_KE5Z_OFICIAL.exe          # Executável principal
+    ├── usuarios.json                        # Arquivos editáveis (FORA do _internal)
+    ├── usuarios_padrao.json                 # Arquivos editáveis (FORA do _internal)
+    └── _internal/                           # Pasta com TODOS os arquivos bundled
+        ├── app.py                           # Scripts Python
+        ├── auth_simple.py
+        ├── Extracao.py
+        ├── pages/                           # Páginas Streamlit
+        │   ├── 1_Dash_Mes.py
+        │   ├── 2_IUD_Assistant.py
+        │   └── ...
+        ├── KE5Z/                            # Dados processados
+        │   ├── KE5Z.parquet
+        │   ├── KE5Z_waterfall.parquet
+        │   └── ...
+        ├── Extracoes/                       # Dados brutos
+        │   ├── KE5Z/
+        │   └── KSBB/
+        ├── arquivos/                        # Arquivos gerados
+        ├── dados_equipe.json                # Configurações (dentro do _internal)
+        ├── Dados SAPIENS.xlsx               # Dados auxiliares
+        ├── Fornecedores.xlsx
+        └── [Todas as DLLs e dependências Python]
+""", language="text")
 
-#### Função Padrão para Caminhos:
-```python
+st.markdown("#### **2. Regra de Ouro: Leitura vs Escrita**")
+st.markdown("""
+- **LEITURA**: Usar `sys._MEIPASS` (aponta para `_internal/`)
+- **ESCRITA**: Usar `os.path.dirname(sys.executable)` (aponta para pasta do .exe)
+""")
+
+st.markdown("#### **3. Ferramenta Correta**")
+st.markdown("""
+- **USAR**: `streamlit-desktop-app` (gerencia _internal automaticamente)
+- **NÃO USAR**: PyInstaller direto (requer configuração manual complexa)
+""")
+
+st.markdown("---")
+
+# Seção 2: Pré-requisitos
+st.markdown("## 2. PRÉ-REQUISITOS")
+st.markdown("### 2.1 Sistema Operacional")
+st.markdown("""
+- **Windows 10/11** (64-bit) - TESTADO E FUNCIONANDO
+- **Python 3.8+** (apenas para desenvolvimento)
+- **PowerShell** ou **CMD** (para executar scripts)
+""")
+
+st.markdown("### 2.2 Dependências Python (Versões Testadas)")
+st.code("""
+# Instalar todas as dependências de uma vez
+pip install streamlit==1.50.0 pandas==2.3.3 plotly==5.17.0 pyarrow==20.0.0 openpyxl==3.1.5 altair==5.5.0 numpy==2.3.3 xlsxwriter==3.2.9 streamlit-desktop-app==0.3.3
+""", language="bash")
+
+st.markdown("### 2.3 Verificar Instalação")
+st.code("""
+# Verificar Python
+python --version
+
+# Verificar dependências principais
+pip show streamlit
+pip show streamlit-desktop-app
+pip show pandas
+pip show pyarrow
+""", language="bash")
+
+st.markdown("---")
+
+# Seção 3: Estrutura do Projeto
+st.markdown("## 3. ESTRUTURA DO PROJETO")
+st.markdown("### 3.1 Estrutura Antes do Empacotamento")
+st.code("""
+DashAPPwin11/                              # Pasta raiz do projeto
+├── app.py                                 # ⭐ Aplicação principal Streamlit
+├── auth_simple.py                         # ⭐ Sistema de autenticação
+├── Extracao.py                            # ⭐ Script de processamento
+├── requirements.txt                       # Lista de dependências
+├── hook-streamlit.py                      # Hook para PyInstaller
+├── pages/                                 # ⭐ Páginas do Streamlit
+│   ├── 1_Dash_Mes.py
+│   ├── 2_IUD_Assistant.py
+│   ├── 3_Total_accounts.py
+│   ├── 4_Waterfall_Analysis.py
+│   ├── 5_Admin_Usuarios.py
+│   ├── 6_Extracao_Dados.py
+│   ├── 7_Sobre_Projeto.py
+│   └── 8_Guia_Empacotamento.py
+├── KE5Z/                                  # ⭐ Dados processados
+│   ├── KE5Z.parquet
+│   ├── KE5Z_main.parquet
+│   ├── KE5Z_others.parquet
+│   ├── KE5Z_waterfall.parquet
+│   └── KE5Z.xlsx
+├── Extracoes/                             # ⭐ Dados brutos
+│   ├── KE5Z/
+│   │   ├── KE5Z.parquet
+│   │   └── KE5Z.xlsx
+│   └── KSBB/
+├── arquivos/                              # ⭐ Arquivos Excel gerados
+│   ├── KE5Z_LC.xlsx
+│   ├── KE5Z_pwt.xlsx
+│   ├── KE5Z_TC_Ext.xlsx
+│   └── KE5Z_veiculos.xlsx
+├── usuarios.json                          # ⭐ Dados de usuários (EDITÁVEL)
+├── usuarios_padrao.json                   # ⭐ Backup de usuários (EDITÁVEL)
+├── dados_equipe.json                      # ⭐ Configurações da equipe
+├── Dados SAPIENS.xlsx                     # ⭐ Dados auxiliares
+├── Fornecedores.xlsx                      # ⭐ Dados auxiliares
+└── criar_executavel_funcional.bat         # Script de build
+
+⭐ = Arquivos/pastas que DEVEM ser incluídos no executável
+""", language="text")
+
+st.markdown("### 3.2 Arquivos Críticos")
+st.markdown("#### **app.py** - Aplicação Principal")
+st.code('''
+import streamlit as st
+import pandas as pd
+import sys
+import os
+from auth_simple import verificar_login
+
+# Função CRÍTICA para caminhos
+def get_base_path():
+    """Retorna o caminho base correto para LEITURA de dados"""
+    if hasattr(sys, '_MEIPASS'):
+        # Rodando no executável - apontar para _internal
+        return sys._MEIPASS
+    else:
+        # Rodando em desenvolvimento
+        return os.path.dirname(os.path.abspath(__file__))
+
+# Configuração da página
+st.set_page_config(
+    page_title="Dashboard KE5Z",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Sistema de autenticação
+if not verificar_login():
+    st.stop()
+
+# Carregar dados
+@st.cache_data
+def load_data():
+    try:
+        base_path = get_base_path()
+        arquivo_parquet = os.path.join(base_path, "KE5Z", "KE5Z.parquet")
+        
+        if os.path.exists(arquivo_parquet):
+            df = pd.read_parquet(arquivo_parquet)
+            return df
+        else:
+            st.error("❌ Arquivo de dados não encontrado!")
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar dados: {str(e)}")
+        return pd.DataFrame()
+''', language="python")
+
+st.markdown("#### **auth_simple.py** - Sistema de Autenticação")
+st.code('''
+import streamlit as st
+import json
+import os
+import sys
+
+def get_data_dir():
+    """Retorna o diretório onde os arquivos EDITÁVEIS devem ser salvos"""
+    if hasattr(sys, '_MEIPASS'):
+        # No executável: salvar FORA do _internal (diretório do .exe)
+        return os.path.dirname(sys.executable)
+    else:
+        # Em desenvolvimento: diretório atual
+        return os.path.dirname(os.path.abspath(__file__))
+
+# Configurações
+DATA_DIR = get_data_dir()
+USUARIOS_FILE = os.path.join(DATA_DIR, "usuarios.json")
+USUARIOS_PADRAO_FILE = os.path.join(DATA_DIR, "usuarios_padrao.json")
+
+def verificar_login():
+    """Sistema de autenticação"""
+    if 'logado' in st.session_state and st.session_state.logado:
+        return True
+    
+    # Interface de login
+    st.title("🔐 Login - Dashboard KE5Z")
+    
+    with st.form("login_form"):
+        usuario = st.text_input("👤 Usuário")
+        senha = st.text_input("🔒 Senha", type="password")
+        
+        if st.form_submit_button("🚀 Entrar"):
+            # Lógica de autenticação
+            pass
+    
+    return False
+''', language="python")
+
+st.markdown("#### **Extracao.py** - Processamento de Dados")
+st.code('''
+import pandas as pd
+import os
+import sys
+
+# Pasta raiz para LEITURA (dentro do _internal)
+ROOT_DIR = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
+
+# Pasta raiz para ESCRITA (fora do _internal)
+if hasattr(sys, '_MEIPASS'):
+    OUTPUT_DIR = os.path.dirname(sys.executable)
+else:
+    OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Pastas de entrada (dentro do _internal)
+DIR_EXTRACOES = os.path.join(ROOT_DIR, "Extracoes")
+DIR_KE5Z_IN = os.path.join(DIR_EXTRACOES, "KE5Z")
+
+# Arquivos auxiliares (dentro do _internal)
+ARQ_SAPIENS = os.path.join(ROOT_DIR, "Dados SAPIENS.xlsx")
+ARQ_FORNECEDORES = os.path.join(ROOT_DIR, "Fornecedores.xlsx")
+
+# Pastas de saída (fora do _internal)
+DIR_KE5Z_OUT = os.path.join(OUTPUT_DIR, "KE5Z")
+DIR_ARQUIVOS_OUT = os.path.join(OUTPUT_DIR, "arquivos")
+
+def processar_dados():
+    """Função principal de processamento"""
+    # Lógica de processamento
+    pass
+''', language="python")
+
+st.markdown("---")
+
+# Seção 4: Configuração de Caminhos
+st.markdown("## 4. CONFIGURAÇÃO DE CAMINHOS")
+st.markdown("### 4.1 Padrão de Caminhos (CRÍTICO)")
+st.markdown("#### **Função para LEITURA de Dados**")
+st.code('''
 import sys
 import os
 
 def get_base_path():
-    \"\"\"Retorna o caminho base correto para LEITURA de dados\"\"\"
+    """Retorna o caminho base correto para LEITURA de dados"""
     if hasattr(sys, '_MEIPASS'):
         # Rodando no executável PyInstaller - apontar para _internal
         return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.abspath(__file__))
+''', language="python")
 
+st.markdown("#### **Função para ESCRITA de Dados**")
+st.code('''
 def get_output_path():
-    \"\"\"Retorna o caminho correto para ESCRITA de dados\"\"\"
+    """Retorna o caminho correto para ESCRITA de dados"""
     if hasattr(sys, '_MEIPASS'):
         # No executável: salvar no diretório do executável (fora do _internal)
         return os.path.dirname(sys.executable)
     else:
         # Em desenvolvimento: mesmo diretório
         return os.path.dirname(os.path.abspath(__file__))
-```
+''', language="python")
 
-#### Aplicação em Todas as Páginas:
-```python
-# Em pages/1_Dash_Mes.py
-def load_data_optimized(arquivo_tipo="completo"):
+st.markdown("### 4.2 Aplicação em Todas as Páginas")
+st.markdown("**REGRA**: Todas as páginas do Streamlit devem usar estas funções.")
+st.markdown("**Exemplo em pages/1_Dash_Mes.py:**")
+st.code('''
+import sys
+import os
+import pandas as pd
+import streamlit as st
+
+def get_base_path():
+    if hasattr(sys, '_MEIPASS'):
+        return sys._MEIPASS
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
+
+@st.cache_data
+def load_data_optimized():
     base_path = get_base_path()
     arquivo_waterfall = os.path.join(base_path, "KE5Z", "KE5Z_waterfall.parquet")
     
     if os.path.exists(arquivo_waterfall):
         return pd.read_parquet(arquivo_waterfall)
     else:
-        # Fallback para arquivo principal
-        nome_arquivo = arquivos_disponiveis.get(arquivo_tipo, "KE5Z.parquet")
-        arquivo_parquet = os.path.join(base_path, "KE5Z", nome_arquivo)
-        return pd.read_parquet(arquivo_parquet)
-```
-""")
+        arquivo_principal = os.path.join(base_path, "KE5Z", "KE5Z.parquet")
+        return pd.read_parquet(arquivo_principal)
+''', language="python")
 
-# Seção 4: Processo de Empacotamento
 st.markdown("---")
-st.header("4. 🚀 Processo de Empacotamento")
 
-tab1, tab2 = st.tabs(["Método 1: Streamlit Desktop App", "Método 2: PyInstaller Direto"])
-
-with tab1:
-    st.subheader("📦 Streamlit Desktop App (Recomendado)")
-    st.code("""
-# 1. Navegar para a pasta do projeto
-cd C:\\caminho\\para\\seu\\projeto
-
-# 2. Instalar ferramenta
-pip install streamlit-desktop-app
-
-# 3. Criar executável
-streamlit-desktop-app build app.py --name Dashboard_KE5Z_Desktop
-    """, language="bash")
-    
-    st.info("✅ **Vantagens:** Mais simples, configuração automática")
-
-with tab2:
-    st.subheader("🔧 PyInstaller Direto (Avançado)")
-    st.code("""
-# 1. Instalar PyInstaller
-pip install pyinstaller
-
-# 2. Criar executável usando arquivo .spec personalizado
-pyinstaller Dashboard_KE5Z_Desktop.spec --noconfirm
-    """, language="bash")
-    
-    st.info("✅ **Vantagens:** Controle total, configuração personalizada")
-
-# Seção 5: Arquivo .spec Personalizado
-st.markdown("---")
-st.header("5. ⚙️ Arquivo .spec Personalizado")
-
+# Seção 5: Processo de Empacotamento
+st.markdown("## 5. PROCESSO DE EMPACOTAMENTO")
+st.markdown("### 5.1 Método Recomendado: streamlit-desktop-app")
+st.markdown("**POR QUE USAR streamlit-desktop-app?**")
 st.markdown("""
-### 📄 Criar Arquivo `Dashboard_KE5Z_Desktop.spec`
-
-```python
-# -*- mode: python ; coding: utf-8 -*-
-
-import os
-from PyInstaller.utils.hooks import collect_all, copy_metadata
-
-# Obter caminho base
-base_path = os.path.abspath('.')
-
-# Configuração principal
-a = Analysis(
-    ['app.py'],
-    pathex=[base_path],
-    binaries=[],
-    datas=[
-        # Arquivos Python principais
-        (os.path.join(base_path, 'app.py'), '.'),
-        (os.path.join(base_path, 'auth_simple.py'), '.'),
-        (os.path.join(base_path, 'Extracao.py'), '.'),
-        
-        # Páginas do Streamlit
-        (os.path.join(base_path, 'pages'), 'pages'),
-        
-        # Dados e pastas
-        (os.path.join(base_path, 'KE5Z'), 'KE5Z'),
-        (os.path.join(base_path, 'Extracoes'), 'Extracoes'),
-        (os.path.join(base_path, 'arquivos'), 'arquivos'),
-        
-        # Arquivos de configuração
-        (os.path.join(base_path, 'usuarios.json'), '.'),
-        (os.path.join(base_path, 'usuarios_padrao.json'), '.'),
-        (os.path.join(base_path, 'dados_equipe.json'), '.'),
-        
-        # Arquivos Excel
-        (os.path.join(base_path, 'Dados SAPIENS.xlsx'), '.'),
-        (os.path.join(base_path, 'Fornecedores.xlsx'), '.')
-    ],
-    hiddenimports=[
-        'altair', 'auth_simple', 'Extracao', 'base64',
-        'datetime.datetime', 'gc', 'io.BytesIO', 'os',
-        'pandas', 'plotly.graph_objects', 'plotly',
-        'streamlit', 'sys'
-    ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    noarchive=False,
-    optimize=0,
-)
-
-# Adicionar metadados das bibliotecas
-datas = a.datas
-binaries = a.binaries
-hiddenimports = a.hiddenimports
-
-# Copiar metadados das bibliotecas principais
-datas += copy_metadata('streamlit')
-datas += copy_metadata('streamlit-desktop-app')
-datas += copy_metadata('plotly')
-datas += copy_metadata('altair')
-datas += copy_metadata('pandas')
-
-# Coletar todas as dependências do Streamlit
-tmp_ret = collect_all('streamlit')
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-
-# Configuração do executável
-pyz = PYZ(a.pure)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='Dashboard_KE5Z_Desktop',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=None
-)
-```
+- ✅ Gerencia automaticamente a estrutura `_internal/`
+- ✅ Inclui todas as dependências do Streamlit
+- ✅ Configuração simplificada
+- ✅ Menos propenso a erros
 """)
 
-# Seção 6: Verificação e Testes
-st.markdown("---")
-st.header("6. ✅ Verificação e Testes")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("🔍 Verificação de Arquivos")
-    st.code("""
-# Navegar para pasta do executável
-cd dist\\Dashboard_KE5Z_Desktop
-
-# Verificar executável principal
-dir *.exe
-
-# Verificar arquivos em _internal
-dir _internal\\*.py
-dir _internal\\*.xlsx
-dir _internal\\KE5Z
-dir _internal\\Extracoes
-    """, language="bash")
-
-with col2:
-    st.subheader("🧪 Teste de Execução")
-    st.code("""
-# Testar execução
-cd dist\\Dashboard_KE5Z_Desktop
-Dashboard_KE5Z_Desktop.exe
-
-# Ou usar script de abertura
-ABRIR_DASHBOARD.bat
-    """, language="bash")
-
-st.subheader("📋 Verificação de Funcionalidades")
-st.markdown("""
-- ✅ **Executável inicia** sem erros
-- ✅ **Sistema de login** funcionando
-- ✅ **Todas as páginas** acessíveis
-- ✅ **Dados carregando** corretamente
-- ✅ **Extração de dados** funcionando
-- ✅ **Filtros de dados** funcionando
-- ✅ **Download de arquivos** funcionando
-- ✅ **Navegação entre páginas** funcionando
-""")
-
-# Seção 7: Solução de Problemas
-st.markdown("---")
-st.header("7. 🔧 Solução de Problemas")
-
-tab1, tab2, tab3 = st.tabs(["Erros Comuns", "Problemas de Caminhos", "Problemas de Performance"])
-
-with tab1:
-    st.subheader("❌ Erros Comuns")
-    
-    st.markdown("""
-    **1. ModuleNotFoundError**
-    ```
-    Problema: Módulos Python não encontrados
-    Solução: Adicionar módulo ao hiddenimports no .spec
-    hiddenimports=['seu_modulo']
-    ```
-    
-    **2. PermissionError**
-    ```
-    Problema: Acesso negado durante build
-    Solução: Terminar processos Python
-    taskkill /f /im python*
-    taskkill /f /im streamlit*
-    ```
-    
-    **3. Arquivo não encontrado**
-    ```
-    Problema: Arquivos de dados não encontrados
-    Solução: Verificar se está usando get_base_path() corretamente
-    base_path = get_base_path()
-    arquivo = os.path.join(base_path, "pasta", "arquivo.parquet")
-    ```
-    """)
-
-with tab2:
-    st.subheader("🗂️ Problemas de Caminhos")
-    
-    st.markdown("""
-    **1. Caminhos Absolutos**
-    ```python
-    # ❌ ERRADO
-    arquivo = "C:\\caminho\\fixo\\arquivo.parquet"
-    
-    # ✅ CORRETO
-    base_path = get_base_path()
-    arquivo = os.path.join(base_path, "pasta", "arquivo.parquet")
-    ```
-    
-    **2. Caminhos Relativos Incorretos**
-    ```python
-    # ❌ ERRADO
-    arquivo = os.path.join("KE5Z", "arquivo.parquet")
-    
-    # ✅ CORRETO
-    base_path = get_base_path()
-    arquivo = os.path.join(base_path, "KE5Z", "arquivo.parquet")
-    ```
-    
-    **3. Verificação de Existência**
-    ```python
-    # ✅ SEMPRE verificar se arquivo existe
-    if os.path.exists(arquivo):
-        df = pd.read_parquet(arquivo)
-    else:
-        st.error(f"Arquivo não encontrado: {arquivo}")
-    ```
-    """)
-
-with tab3:
-    st.subheader("⚡ Problemas de Performance")
-    
-    st.markdown("""
-    **1. Arquivo Excel Muito Grande**
-    ```python
-    # Problema: ValueError: This sheet is too large!
-    # Solução: Comentar linha que salva Excel completo
-    # df_total_excel.to_excel("arquivo_completo.xlsx", index=False)
-    ```
-    
-    **2. Erro de Conversão PyArrow**
-    ```python
-    # Problema: pyarrow.lib.ArrowInvalid
-    # Solução: Converter colunas problemáticas para string
-    text_columns = ['coluna1', 'coluna2', 'coluna3']
-    for col in text_columns:
-        if col in df.columns:
-            df[col] = df[col].astype(str)
-    ```
-    
-    **3. Uso Excessivo de Memória**
-    ```python
-    # Solução: Usar cache inteligente
-    @st.cache_data(ttl=3600, max_entries=3, persist="disk")
-    def load_data_optimized():
-        # Carregamento otimizado
-    ```
-    """)
-
-# Seção 8: Distribuição
-st.markdown("---")
-st.header("8. 📦 Distribuição")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📁 Preparação para Distribuição")
-    st.code("""
-# Criar pasta de distribuição
-mkdir Dashboard_KE5Z_Distribuicao
-
-# Copiar pasta do executável
-xcopy dist\\Dashboard_KE5Z_Desktop Dashboard_KE5Z_Distribuicao\\ /E /I /Y
-
-# Adicionar arquivos de documentação
-echo Para executar, clique duas vezes em Dashboard_KE5Z_Desktop.exe > Dashboard_KE5Z_Distribuicao\\COMO_USAR.txt
-    """, language="bash")
-
-with col2:
-    st.subheader("🚀 Script de Abertura")
-    st.code("""
+st.markdown("### 5.2 Script de Build (criar_executavel_funcional.bat)")
+st.code('''
 @echo off
 chcp 65001 >nul
 echo ===============================================
-echo    DASHBOARD KE5Z - INICIANDO...
+echo    CRIANDO EXECUTÁVEL - Dashboard KE5Z
 echo ===============================================
 echo.
-echo Aguarde alguns segundos para o aplicativo carregar...
+
+REM Passo 1: Limpar builds anteriores
+echo 🧹 Limpando builds anteriores...
+if exist "build" rmdir /s /q "build"
+if exist "dist" rmdir /s /q "dist"
+echo ✅ Limpeza concluída
 echo.
 
-start "" "Dashboard_KE5Z_Desktop.exe"
+REM Passo 2: Criar executável com streamlit-desktop-app
+echo 🔨 Criando executável...
+streamlit-desktop-app build app.py --name Dashboard_KE5Z_OFICIAL
+echo.
+
+REM Verificar se o build foi bem-sucedido
+if not exist "dist\\Dashboard_KE5Z_OFICIAL\\Dashboard_KE5Z_OFICIAL.exe" (
+    echo ❌ ERRO: Executável não foi criado!
+    pause
+    exit /b 1
+)
+
+echo ✅ Executável criado com sucesso!
+echo.
+
+REM Passo 3: Copiar dados para _internal
+echo 📁 Copiando dados para _internal...
+
+REM Copiar pastas de dados
+xcopy "KE5Z" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\KE5Z\\" /E /I /Y >nul
+xcopy "Extracoes" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\Extracoes\\" /E /I /Y >nul
+xcopy "arquivos" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\arquivos\\" /E /I /Y >nul
+xcopy "pages" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\pages\\" /E /I /Y >nul
+
+REM Copiar arquivos de configuração para _internal
+copy "dados_equipe.json" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\" >nul
+copy "Dados SAPIENS.xlsx" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\" >nul
+copy "Fornecedores.xlsx" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\" >nul
+
+REM Copiar arquivos Python principais para _internal
+copy "auth_simple.py" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\" >nul
+copy "Extracao.py" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\" >nul
+
+echo ✅ Dados copiados para _internal
+echo.
+
+REM Passo 4: Copiar arquivos EDITÁVEIS para fora do _internal
+echo 📝 Copiando arquivos editáveis...
+copy "usuarios.json" "dist\\Dashboard_KE5Z_OFICIAL\\" >nul
+copy "usuarios_padrao.json" "dist\\Dashboard_KE5Z_OFICIAL\\" >nul
+
+echo ✅ Arquivos editáveis copiados
+echo.
+
+REM Passo 5: Verificação final
+echo 🔍 Verificando estrutura final...
+if exist "dist\\Dashboard_KE5Z_OFICIAL\\Dashboard_KE5Z_OFICIAL.exe" (
+    echo ✅ Executável: OK
+) else (
+    echo ❌ Executável: FALTANDO
+)
+
+if exist "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\KE5Z" (
+    echo ✅ Pasta KE5Z: OK
+) else (
+    echo ❌ Pasta KE5Z: FALTANDO
+)
+
+if exist "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\pages" (
+    echo ✅ Pasta pages: OK
+) else (
+    echo ❌ Pasta pages: FALTANDO
+)
+
+if exist "dist\\Dashboard_KE5Z_OFICIAL\\usuarios.json" (
+    echo ✅ usuarios.json: OK
+) else (
+    echo ❌ usuarios.json: FALTANDO
+)
 
 echo.
-echo Aplicativo iniciado! Aguarde o navegador abrir...
+echo ===============================================
+echo    BUILD CONCLUÍDO!
+echo ===============================================
 echo.
-echo Se o navegador não abrir automaticamente,
-echo acesse: http://localhost:8501
+echo 📁 Localização: dist\\Dashboard_KE5Z_OFICIAL\\
+echo 🚀 Para testar: Execute o arquivo .exe
 echo.
 pause
-    """, language="batch")
+''', language="batch")
 
-# Seção 9: Checklist Completo
+st.markdown("### 5.3 Comandos Passo a Passo")
+st.code('''
+# 1. Navegar para a pasta do projeto
+cd C:\\user\\U235107\\GitHub\\DashAPPwin11
+
+# 2. Verificar se streamlit-desktop-app está instalado
+pip show streamlit-desktop-app
+
+# 3. Limpar builds anteriores
+rmdir /s /q build
+rmdir /s /q dist
+
+# 4. Executar o script de build
+criar_executavel_funcional.bat
+''', language="bash")
+
 st.markdown("---")
-st.header("9. ✅ Checklist Completo")
 
-tab1, tab2, tab3 = st.tabs(["Antes do Empacotamento", "Durante o Empacotamento", "Após o Empacotamento"])
+# Seção 6: Estrutura Final
+st.markdown("## 6. ESTRUTURA FINAL DA PASTA dist")
+st.markdown("### 6.1 Estrutura Completa (CRÍTICO - SEGUIR EXATAMENTE)")
+st.markdown("Esta é a estrutura **EXATA** que deve ser criada após o empacotamento:")
 
-with tab1:
-    st.subheader("📋 ANTES DO EMPACOTAMENTO")
+st.code("""
+dist/
+└── Dashboard_KE5Z_OFICIAL/                    # Pasta principal do executável
+    │
+    ├── Dashboard_KE5Z_OFICIAL.exe             # ⭐ Executável principal (31+ MB)
+    ├── usuarios.json                          # ⭐ Arquivo EDITÁVEL (fora do _internal)
+    ├── usuarios_padrao.json                   # ⭐ Arquivo EDITÁVEL (fora do _internal)
+    ├── pyvenv.cfg                             # Configuração Python (gerado automaticamente)
+    │
+    └── _internal/                             # ⭐ PASTA CRÍTICA - Todos os arquivos bundled
+        │
+        ├── ─── ARQUIVOS PYTHON ───
+        ├── app.py                             # Aplicação principal
+        ├── auth_simple.py                     # Sistema de autenticação
+        ├── Extracao.py                        # Script de processamento
+        │
+        ├── ─── PÁGINAS STREAMLIT ───
+        ├── pages/
+        │   ├── 1_Dash_Mes.py
+        │   ├── 2_IUD_Assistant.py
+        │   ├── 3_Total_accounts.py
+        │   ├── 4_Waterfall_Analysis.py
+        │   ├── 5_Admin_Usuarios.py
+        │   ├── 6_Extracao_Dados.py
+        │   ├── 7_Sobre_Projeto.py
+        │   └── 8_Guia_Empacotamento.py
+        │
+        ├── ─── DADOS PROCESSADOS ───
+        ├── KE5Z/
+        │   ├── KE5Z.parquet                   # Arquivo principal (3+ milhões de registros)
+        │   ├── KE5Z_main.parquet              # Dados main
+        │   ├── KE5Z_others.parquet            # Dados others
+        │   ├── KE5Z_waterfall.parquet         # Arquivo otimizado (68% menor)
+        │   └── KE5Z.xlsx                      # Backup Excel
+        │
+        ├── ─── DADOS BRUTOS ───
+        ├── Extracoes/
+        │   ├── KE5Z/
+        │   │   ├── KE5Z.parquet
+        │   │   └── KE5Z.xlsx
+        │   └── KSBB/
+        │       └── (arquivos KSBB se existirem)
+        │
+        ├── ─── ARQUIVOS GERADOS ───
+        ├── arquivos/
+        │   ├── KE5Z_LC.xlsx
+        │   ├── KE5Z_pwt.xlsx
+        │   ├── KE5Z_TC_Ext.xlsx
+        │   └── KE5Z_veiculos.xlsx
+        │
+        ├── ─── CONFIGURAÇÕES E DADOS AUXILIARES ───
+        ├── dados_equipe.json                  # Configurações da equipe
+        ├── Dados SAPIENS.xlsx                 # Dados auxiliares
+        ├── Fornecedores.xlsx                  # Dados de fornecedores
+        │
+        ├── ─── DEPENDÊNCIAS PYTHON ───
+        ├── base_library.zip                   # Biblioteca Python base
+        ├── python313.dll                      # DLL Python
+        ├── python3.dll
+        ├── libcrypto-3.dll
+        ├── libssl-3.dll
+        ├── libffi-8.dll
+        ├── sqlite3.dll
+        ├── VCRUNTIME140.dll
+        ├── VCRUNTIME140_1.dll
+        │
+        ├── ─── PACOTES PYTHON ───
+        ├── streamlit/                         # Pacote Streamlit completo
+        ├── pandas/                            # Pacote Pandas completo
+        ├── plotly/                            # Pacote Plotly completo
+        ├── pyarrow/                           # Pacote PyArrow completo
+        ├── altair/                            # Pacote Altair completo
+        ├── numpy/                             # Pacote NumPy completo
+        ├── openpyxl/                          # Pacote OpenPyXL completo
+        │
+        ├── ─── METADADOS (CRÍTICO) ───
+        ├── streamlit-1.50.0.dist-info/        # Metadados do Streamlit
+        ├── pandas-2.3.3.dist-info/            # Metadados do Pandas
+        ├── plotly-5.17.0.dist-info/           # Metadados do Plotly
+        ├── pyarrow-20.0.0.dist-info/          # Metadados do PyArrow
+        │
+        └── [Outros arquivos .pyd, .dll, e dependências...]
+""", language="text")
+
+# Continuar com as outras seções...
+st.markdown("### 6.2 Verificação da Estrutura")
+st.markdown("**Comando para verificar a estrutura:**")
+st.code('''
+cd dist\\Dashboard_KE5Z_OFICIAL
+
+# Verificar executável
+dir *.exe
+
+# Verificar arquivos editáveis (FORA do _internal)
+dir *.json
+
+# Verificar pasta _internal
+dir _internal
+
+# Verificar dados dentro do _internal
+dir _internal\\KE5Z
+dir _internal\\Extracoes
+dir _internal\\arquivos
+dir _internal\\pages
+
+# Verificar arquivos auxiliares
+dir _internal\\*.xlsx
+dir _internal\\*.json
+''', language="bash")
+
+st.markdown("### 6.3 Tamanhos Esperados")
+st.markdown("""
+| Item | Tamanho Aproximado |
+|------|-------------------|
+| **Dashboard_KE5Z_OFICIAL.exe** | 31-35 MB |
+| **_internal/** (pasta completa) | 400-500 MB |
+| **KE5Z.parquet** | 50-100 MB |
+| **KE5Z_waterfall.parquet** | 15-30 MB (68% menor) |
+| **Dados SAPIENS.xlsx** | 1-5 MB |
+| **Total da pasta dist/** | 450-550 MB |
+""")
+
+st.markdown("### 6.4 Arquivos Críticos que NÃO Podem Faltar")
+st.markdown("#### **No diretório raiz (fora do _internal):**")
+st.markdown("""
+- ✅ `Dashboard_KE5Z_OFICIAL.exe`
+- ✅ `usuarios.json`
+- ✅ `usuarios_padrao.json`
+""")
+
+st.markdown("#### **Dentro do _internal:**")
+st.markdown("""
+- ✅ `app.py`
+- ✅ `auth_simple.py`
+- ✅ `Extracao.py`
+- ✅ `pages/` (pasta com 8 arquivos .py)
+- ✅ `KE5Z/` (pasta com arquivos .parquet)
+- ✅ `Extracoes/` (pasta com dados brutos)
+- ✅ `arquivos/` (pasta com arquivos Excel)
+- ✅ `dados_equipe.json`
+- ✅ `Dados SAPIENS.xlsx`
+- ✅ `Fornecedores.xlsx`
+- ✅ `streamlit/` (pacote completo)
+- ✅ `pandas/` (pacote completo)
+- ✅ `streamlit-1.50.0.dist-info/` (metadados)
+""")
+
+st.markdown("### 6.5 Regra de Ouro: O que vai onde?")
+st.markdown("#### **FORA do _internal (editável pelo usuário):**")
+st.code("""
+✅ usuarios.json          → Usuário pode editar
+✅ usuarios_padrao.json   → Usuário pode editar
+""", language="text")
+
+st.markdown("#### **DENTRO do _internal (read-only, bundled):**")
+st.code("""
+✅ Todos os scripts Python (.py)
+✅ Todas as pastas de dados (KE5Z, Extracoes, arquivos, pages)
+✅ Todos os arquivos de configuração (dados_equipe.json, *.xlsx)
+✅ Todas as dependências Python
+✅ Todas as DLLs
+""", language="text")
+
+st.markdown("---")
+
+# Seção 7: Verificação e Testes
+st.markdown("## 7. VERIFICAÇÃO E TESTES")
+st.markdown("### 7.1 Checklist de Verificação Imediata")
+st.markdown("Após o build, execute estas verificações:")
+
+st.code('''
+# 1. Verificar se o executável foi criado
+cd dist\\Dashboard_KE5Z_OFICIAL
+dir Dashboard_KE5Z_OFICIAL.exe
+
+# 2. Verificar tamanho do executável (deve ser 31-35 MB)
+# Se for muito pequeno (< 10 MB), algo deu errado
+
+# 3. Verificar pasta _internal
+dir _internal
+
+# 4. Verificar arquivos Python dentro do _internal
+dir _internal\\*.py
+
+# 5. Verificar pastas de dados
+dir _internal\\KE5Z
+dir _internal\\pages
+dir _internal\\Extracoes
+
+# 6. Verificar arquivos editáveis FORA do _internal
+dir *.json
+''', language="bash")
+
+st.markdown("### 7.2 Teste de Execução")
+st.code('''
+# Teste 1: Executar o .exe
+Dashboard_KE5Z_OFICIAL.exe
+
+# Teste 2: Verificar se abre no navegador
+# Deve abrir automaticamente em http://localhost:8501
+
+# Teste 3: Fazer login
+# Usar credenciais de teste
+
+# Teste 4: Navegar pelas páginas
+# Testar todas as 8 páginas
+
+# Teste 5: Testar funcionalidades
+# - Carregar dados
+# - Aplicar filtros
+# - Gerar gráficos
+# - Exportar arquivos
+''', language="bash")
+
+st.markdown("### 7.3 Teste em Outro PC")
+st.markdown("**IMPORTANTE**: Testar em PC sem Python instalado")
+st.code('''
+# 1. Copiar TODA a pasta Dashboard_KE5Z_OFICIAL
+# 2. Colar em outro PC
+# 3. Executar o .exe
+# 4. Verificar se funciona 100%
+''', language="bash")
+
+st.markdown("---")
+
+# Seção 8: Solução de Problemas
+st.markdown("## 8. SOLUÇÃO DE PROBLEMAS")
+
+with st.expander("### 8.1 Problema: Executável não abre"):
+    st.markdown("**Sintomas**: Clica no .exe e nada acontece")
+    st.markdown("**Soluções**:")
+    st.code('''
+# 1. Verificar se o Windows Defender está bloqueando
+# Ir em: Configurações > Segurança do Windows > Proteção contra vírus
+
+# 2. Executar como administrador
+# Clicar com botão direito > Executar como administrador
+
+# 3. Verificar se a porta 8501 está livre
+netstat -an | findstr :8501
+
+# 4. Verificar logs de erro
+# Executar pelo CMD para ver mensagens de erro
+cd dist\\Dashboard_KE5Z_OFICIAL
+Dashboard_KE5Z_OFICIAL.exe
+''', language="bash")
+
+with st.expander("### 8.2 Problema: Erro 'Arquivo não encontrado'"):
+    st.markdown("**Sintomas**: Aplicação abre mas não carrega dados")
+    st.markdown("**Soluções**:")
+    st.code('''
+# 1. Verificar se está usando get_base_path() corretamente
+# Em TODOS os arquivos Python
+
+# 2. Verificar se os arquivos estão no _internal
+dir _internal\\KE5Z
+dir _internal\\Extracoes
+
+# 3. Adicionar debug no código
+import sys
+import os
+
+base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
+print(f"Base path: {base_path}")
+print(f"Arquivos em KE5Z: {os.listdir(os.path.join(base_path, 'KE5Z'))}")
+''', language="python")
+
+with st.expander("### 8.3 Problema: Erro 'No package metadata was found for streamlit'"):
+    st.markdown("**Sintomas**: Executável abre e fecha imediatamente")
+    st.markdown("**Solução**: Usar `streamlit-desktop-app` (já resolve automaticamente)")
+    st.markdown("Se o erro persistir:")
+    st.code('''
+# Reinstalar streamlit-desktop-app
+pip uninstall streamlit-desktop-app
+pip install streamlit-desktop-app
+
+# Limpar cache
+rmdir /s /q build
+rmdir /s /q dist
+
+# Rebuild
+criar_executavel_funcional.bat
+''', language="bash")
+
+with st.expander("### 8.4 Problema: Pastas não foram copiadas para _internal"):
+    st.markdown("**Sintomas**: Estrutura do _internal está incompleta")
+    st.markdown("**Solução**: Executar comandos manualmente")
+    st.code('''
+# Navegar para a pasta do projeto
+cd C:\\user\\U235107\\GitHub\\DashAPPwin11
+
+# Copiar pastas para _internal
+xcopy "KE5Z" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\KE5Z\\" /E /I /Y
+xcopy "Extracoes" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\Extracoes\\" /E /I /Y
+xcopy "arquivos" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\arquivos\\" /E /I /Y
+xcopy "pages" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\pages\\" /E /I /Y
+
+# Copiar arquivos de configuração
+copy "dados_equipe.json" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\"
+copy "Dados SAPIENS.xlsx" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\"
+copy "Fornecedores.xlsx" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\"
+
+# Copiar arquivos editáveis para fora do _internal
+copy "usuarios.json" "dist\\Dashboard_KE5Z_OFICIAL\\"
+copy "usuarios_padrao.json" "dist\\Dashboard_KE5Z_OFICIAL\\"
+''', language="bash")
+
+st.markdown("---")
+
+# Seção 9: Distribuição
+st.markdown("## 9. DISTRIBUIÇÃO")
+st.markdown("### 9.1 Preparar para Distribuição")
+st.code('''
+# 1. Testar o executável localmente
+cd dist\\Dashboard_KE5Z_OFICIAL
+Dashboard_KE5Z_OFICIAL.exe
+
+# 2. Criar pasta de distribuição
+cd C:\\user\\U235107\\GitHub\\DashAPPwin11
+mkdir Dashboard_KE5Z_Distribuicao
+
+# 3. Copiar TODA a pasta
+xcopy "dist\\Dashboard_KE5Z_OFICIAL" "Dashboard_KE5Z_Distribuicao\\Dashboard_KE5Z_OFICIAL\\" /E /I /Y
+
+# 4. Criar arquivo de instruções
+echo Para executar, clique duas vezes em Dashboard_KE5Z_OFICIAL.exe > Dashboard_KE5Z_Distribuicao\\COMO_USAR.txt
+''', language="bash")
+
+st.markdown("### 9.2 Compactar para Distribuição")
+st.code('''
+# Opção 1: ZIP
+# Clicar com botão direito na pasta > Enviar para > Pasta compactada
+
+# Opção 2: PowerShell
+Compress-Archive -Path "Dashboard_KE5Z_Distribuicao\\*" -DestinationPath "Dashboard_KE5Z_v4.0.zip"
+''', language="bash")
+
+st.markdown("---")
+
+# Seção 10: Checklist
+st.markdown("## 10. CHECKLIST COMPLETO")
+
+with st.expander("### ✅ ANTES DO EMPACOTAMENTO"):
     st.markdown("""
-    - [ ] Aplicação Streamlit funcionando corretamente
-    - [ ] Todos os caminhos usando `get_base_path()` e `get_output_path()`
-    - [ ] Dependências listadas em `requirements.txt`
-    - [ ] Arquivos de dados organizados e acessíveis
-    - [ ] Scripts auxiliares funcionando independentemente
+    - [ ] Python 3.8+ instalado
+    - [ ] streamlit-desktop-app instalado
+    - [ ] Todas as dependências instaladas (requirements.txt)
+    - [ ] Aplicação Streamlit funcionando (`streamlit run app.py`)
+    - [ ] Todos os arquivos Python usando `get_base_path()` e `get_output_path()`
+    - [ ] Pastas de dados existem (KE5Z, Extracoes, arquivos, pages)
+    - [ ] Arquivos de configuração existem (*.json, *.xlsx)
     - [ ] Sistema de autenticação testado
     - [ ] Todas as páginas carregando sem erros
-    - [ ] Arquivo `.spec` criado com configuração correta
     """)
 
-with tab2:
-    st.subheader("🔧 DURANTE O EMPACOTAMENTO")
+with st.expander("### ✅ DURANTE O EMPACOTAMENTO"):
     st.markdown("""
-    - [ ] Comando `pyinstaller` executado sem erros
-    - [ ] Pasta `dist/` criada com sucesso
-    - [ ] Executável gerado sem erros críticos
-    - [ ] Todos os arquivos incluídos em `_internal/`
-    - [ ] Processo de build completado sem interrupções
-    - [ ] Logs de build sem erros fatais
+    - [ ] Builds anteriores limpos (build/ e dist/ removidos)
+    - [ ] Comando `streamlit-desktop-app build app.py --name Dashboard_KE5Z_OFICIAL` executado
+    - [ ] Executável criado em `dist\\Dashboard_KE5Z_OFICIAL\\`
+    - [ ] Pasta `_internal` criada automaticamente
+    - [ ] Pastas de dados copiadas para `_internal\\`
+    - [ ] Arquivos de configuração copiados para `_internal\\`
+    - [ ] Arquivos editáveis copiados para fora do `_internal\\`
     """)
 
-with tab3:
-    st.subheader("🎯 APÓS O EMPACOTAMENTO")
+with st.expander("### ✅ APÓS O EMPACOTAMENTO"):
     st.markdown("""
-    - [ ] Executável principal presente e executável
-    - [ ] Arquivos Python em `_internal/`
-    - [ ] Dados auxiliares em `_internal/`
-    - [ ] Pastas de dados em `_internal/`
-    - [ ] Arquivos de configuração na raiz (acessíveis)
-    - [ ] Script de abertura criado
-    - [ ] Teste em PC sem Python instalado
-    - [ ] Verificação de portabilidade
-    - [ ] Documentação criada
-    - [ ] Instruções claras para usuário
+    - [ ] Executável principal existe e tem 31-35 MB
+    - [ ] Pasta `_internal` existe e tem 400-500 MB
+    - [ ] `usuarios.json` está FORA do `_internal`
+    - [ ] `usuarios_padrao.json` está FORA do `_internal`
+    - [ ] `app.py` está DENTRO do `_internal`
+    - [ ] `auth_simple.py` está DENTRO do `_internal`
+    - [ ] `Extracao.py` está DENTRO do `_internal`
+    - [ ] Pasta `pages/` está DENTRO do `_internal`
+    - [ ] Pasta `KE5Z/` está DENTRO do `_internal`
+    - [ ] Pasta `Extracoes/` está DENTRO do `_internal`
+    - [ ] Pasta `arquivos/` está DENTRO do `_internal`
+    - [ ] `dados_equipe.json` está DENTRO do `_internal`
+    - [ ] `Dados SAPIENS.xlsx` está DENTRO do `_internal`
+    - [ ] `Fornecedores.xlsx` está DENTRO do `_internal`
     """)
 
-# Seção 10: Dicas Importantes
+with st.expander("### ✅ TESTES"):
+    st.markdown("""
+    - [ ] Executável inicia sem erros
+    - [ ] Navegador abre automaticamente em http://localhost:8501
+    - [ ] Sistema de login funcionando
+    - [ ] Todas as 8 páginas acessíveis
+    - [ ] Dados carregando corretamente
+    - [ ] Filtros funcionando
+    - [ ] Gráficos renderizando
+    - [ ] Exportação de arquivos funcionando
+    - [ ] Extração de dados funcionando
+    - [ ] Testado em outro PC sem Python
+    """)
+
+with st.expander("### ✅ DISTRIBUIÇÃO"):
+    st.markdown("""
+    - [ ] Pasta de distribuição criada
+    - [ ] Arquivo COMO_USAR.txt incluído
+    - [ ] Estrutura completa copiada
+    - [ ] Arquivo ZIP criado (opcional)
+    - [ ] Testado em ambiente limpo
+    - [ ] Documentação atualizada
+    """)
+
 st.markdown("---")
-st.header("10. 💡 Dicas Importantes")
 
-col1, col2 = st.columns(2)
+# Resumo Executivo
+st.markdown("## 🎯 RESUMO EXECUTIVO")
+st.markdown("### Para Qualquer IA Seguir Este Guia:")
 
-with col1:
-    st.subheader("🎯 Caminhos Relativos")
-    st.markdown("""
-    - **SEMPRE** use `get_base_path()` para leitura de dados
-    - **SEMPRE** use `get_output_path()` para escrita de dados
-    - **NUNCA** use caminhos absolutos hardcoded
-    - Teste em diferentes locais do sistema
-    """)
+st.markdown("**1. PREPARAÇÃO**")
+st.code('''
+cd C:\\user\\U235107\\GitHub\\DashAPPwin11
+pip install streamlit-desktop-app
+''', language="bash")
 
-with col2:
-    st.subheader("📦 Arquivos de Dados")
-    st.markdown("""
-    - Mantenha dados de entrada em `_internal/` (read-only)
-    - Salve dados de saída no diretório do executável (writable)
-    - Use duplicação estratégica quando necessário
-    - Verifique permissões de escrita
-    """)
+st.markdown("**2. BUILD**")
+st.code('''
+criar_executavel_funcional.bat
+''', language="bash")
+
+st.markdown("**3. VERIFICAÇÃO**")
+st.code('''
+cd dist\\Dashboard_KE5Z_OFICIAL
+dir *.exe
+dir _internal\\KE5Z
+dir _internal\\pages
+dir *.json
+''', language="bash")
+
+st.markdown("**4. TESTE**")
+st.code('''
+Dashboard_KE5Z_OFICIAL.exe
+''', language="bash")
+
+st.markdown("**5. DISTRIBUIÇÃO**")
+st.code('''
+xcopy "dist\\Dashboard_KE5Z_OFICIAL" "Dashboard_KE5Z_Distribuicao\\" /E /I /Y
+''', language="bash")
+
+st.markdown("### Estrutura Final Esperada:")
+st.code("""
+dist/Dashboard_KE5Z_OFICIAL/
+├── Dashboard_KE5Z_OFICIAL.exe (31-35 MB)
+├── usuarios.json
+├── usuarios_padrao.json
+└── _internal/ (400-500 MB)
+    ├── app.py
+    ├── auth_simple.py
+    ├── Extracao.py
+    ├── pages/ (8 arquivos)
+    ├── KE5Z/ (arquivos parquet)
+    ├── Extracoes/
+    ├── arquivos/
+    ├── dados_equipe.json
+    ├── Dados SAPIENS.xlsx
+    ├── Fornecedores.xlsx
+    └── [Dependências Python]
+""", language="text")
+
+st.markdown("### Regras Críticas:")
+st.markdown("""
+1. **SEMPRE** usar `streamlit-desktop-app` para build
+2. **SEMPRE** copiar dados para `_internal/`
+3. **SEMPRE** manter `usuarios.json` FORA do `_internal/`
+4. **SEMPRE** usar `sys._MEIPASS` para leitura
+5. **SEMPRE** usar `os.path.dirname(sys.executable)` para escrita
+""")
+
+st.markdown("---")
+st.markdown("**🎉 FIM DO GUIA DEFINITIVO**")
+st.markdown("*Este guia foi criado para garantir que qualquer IA possa reproduzir exatamente o mesmo resultado de empacotamento do Dashboard KE5Z.*")
+st.markdown("*Versão: 4.0 - Definitivo e Completo*")
+st.markdown("*Data: 25/10/2025*")
+st.markdown("*Status: ✅ TESTADO E FUNCIONANDO*")
 
 # Footer
 st.markdown("---")
-st.markdown("""
-<div style="text-align: center; padding: 2rem; background: linear-gradient(45deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-top: 2rem;">
-    <h3 style="color: white; margin: 0;">📦 Guia de Empacotamento</h3>
-    <p style="color: #f0f0f0; margin: 0.5rem 0;">
-        Instruções completas para criar executáveis desktop independentes
-    </p>
-    <p style="color: #e0e0e0; font-size: 0.9rem; margin: 0;">
-        🖥️ Funciona sem Python • ⚡ Performance otimizada • 🔄 Extração automática • 📊 8 páginas completas
-    </p>
-    <p style="color: #d0d0d0; font-size: 0.8rem; margin-top: 1rem;">
-        💻 4.000+ linhas de código • ⚡ 68% otimização • 🖥️ Aplicação Desktop • 🔄 Extração automática • 📊 8 páginas completas • 🎯 Guia completo de empacotamento
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# Informações do sistema
-st.markdown("---")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.info(f"🕒 **Gerado em:** {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
-with col2:
-    st.success("✅ **Status:** Guia Atualizado")
-
-with col3:
-    st.info("🔧 **Versão:** Baseado no Projeto Real")
+st.markdown(f"*Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}*")

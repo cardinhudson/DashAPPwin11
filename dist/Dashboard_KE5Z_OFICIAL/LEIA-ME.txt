@@ -1,0 +1,17 @@
+﻿DASHBOARD KE5Z - GUIA RÁPIDO
+
+Login padrão:
+  Usuário: admin
+  Senha: admin123
+
+Para executar: Clique duas vezes em Dashboard_KE5Z_OFICIAL.exe
+
+IMPORTANTE: Não modifique a pasta _internal
+
+==========================================
+NOVIDADES NESTA VERSÃO:
+ Padronização automática de colunas
+ Suporte a múltiplos arquivos (sem limite)
+ Processamento robusto de arquivos
+==========================================
+

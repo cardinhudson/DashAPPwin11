@@ -2,6 +2,8 @@
 import pandas as pd
 import os
 import sys
+from io import BytesIO
+import base64
 
 # Adicionar diretório pai ao path para importar auth_simple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -390,26 +392,42 @@ st.markdown("---")
 # Função para exportar uma única tabela para Excel
 def exportar_excel(df, nome_arquivo):
     """Exporta DataFrame para Excel e retorna bytes para download"""
-    from io import BytesIO
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=True, sheet_name='Dados')
     output.seek(0)
     return output.getvalue()
 
-# Botão para download da tabela "Total SAP KE5Z - Todas as contas"
+# Botão de download nativo da tabela "Total SAP KE5Z - Todas as contas"
+with st.spinner("Gerando arquivo para download..."):
+    # Criar a tabela pivot novamente para exportação (sem formatação de estilo)
+    tabela_para_exportar = df_filtrado.pivot_table(
+        index='Nº conta',
+        columns='Período',
+        values='Valor',
+        aggfunc='sum',
+        fill_value=0,
+        margins=True,
+        margins_name='Total'
+    )
+    excel_data_total_contas = exportar_excel(tabela_para_exportar, 'KE5Z_total_contas.xlsx')
+
 if st.button("📥 Baixar Total SAP KE5Z - Todas as contas (Excel)", use_container_width=True):
     with st.spinner("Gerando arquivo..."):
-        # Criar a tabela pivot novamente para exportação (sem formatação de estilo)
-        tabela_para_exportar = df_filtrado.pivot_table(index='Nº conta', columns='Período', values='Valor', aggfunc='sum', fill_value=0, margins=True, margins_name='Total')
-        excel_data = exportar_excel(tabela_para_exportar, 'KE5Z_total_contas.xlsx')
-        
-        # Forçar download usando JavaScript
-        import base64
-        b64 = base64.b64encode(excel_data).decode()
-        href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="KE5Z_total_contas.xlsx">💾 Clique aqui para baixar</a>'
-        st.markdown(href, unsafe_allow_html=True)
-        st.success("✅ Arquivo gerado! Clique no link acima para baixar.")
+        try:
+            # Obter pasta Downloads do usuário
+            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+            file_name = "KE5Z_total_contas.xlsx"
+            file_path = os.path.join(downloads_path, file_name)
+            
+            # Salvar arquivo diretamente na pasta Downloads
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                tabela_para_exportar.to_excel(writer, index=False, sheet_name='Total_Contas')
+            
+            st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+            st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+        except Exception as e:
+            st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Resumo compacto
 with st.sidebar.expander("📊 Resumo", expanded=False):
@@ -457,12 +475,20 @@ if colunas_necessarias.issubset(set(df_filtrado.columns)):
     # Download da tabela
     if st.button("📥 Baixar Soma por Types (Excel)", use_container_width=True):
         with st.spinner("Gerando arquivo..."):
-            excel_data = exportar_excel(tabela_types, 'KE5Z_soma_types.xlsx')
-            import base64
-            b64 = base64.b64encode(excel_data).decode()
-            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="KE5Z_soma_types.xlsx">💾 Clique aqui para baixar</a>'
-            st.markdown(href, unsafe_allow_html=True)
-            st.success("✅ Arquivo gerado! Clique no link acima para baixar.")
+            try:
+                # Obter pasta Downloads do usuário
+                downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                file_name = "KE5Z_soma_types.xlsx"
+                file_path = os.path.join(downloads_path, file_name)
+                
+                # Salvar arquivo diretamente na pasta Downloads
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    tabela_types.to_excel(writer, index=False, sheet_name='Soma_Types')
+                
+                st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+                st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+            except Exception as e:
+                st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 else:
     st.info("Colunas necessárias não disponíveis para esta tabela.")
 

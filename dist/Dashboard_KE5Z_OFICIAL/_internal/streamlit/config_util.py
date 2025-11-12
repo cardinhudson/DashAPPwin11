@@ -54,19 +54,19 @@ def show_config(
         )
     )
 
-    def append_desc(text: str) -> None:
+    def append_desc(text):
         out.append("# " + cli_util.style_for_cli(text, bold=True))
 
-    def append_comment(text: str) -> None:
+    def append_comment(text):
         out.append("# " + cli_util.style_for_cli(text))
 
-    def append_section(text: str) -> None:
+    def append_section(text):
         out.append(cli_util.style_for_cli(text, bold=True, fg="green"))
 
-    def append_setting(text: str) -> None:
+    def append_setting(text):
         out.append(cli_util.style_for_cli(text, fg="green"))
 
-    for section in section_descriptions:
+    for section, _ in section_descriptions.items():
         # We inject a fake config section used for unit tests that we exclude here as
         # its options are often missing required properties, which confuses the code
         # below.
@@ -84,10 +84,10 @@ def show_config(
             continue
 
         out.append("")
-        append_section(f"[{section}]")
+        append_section("[%s]" % section)
         out.append("")
 
-        for option in section_options.values():
+        for _, option in section_options.items():
             key = option.key.split(".")[-1]
             description_paragraphs = _clean_paragraphs(option.description or "")
 
@@ -112,21 +112,7 @@ def show_config(
 
                 # # Add a line break after a paragraph only if it's not the last paragraph
                 if i != last_paragraph_idx:
-                    append_comment("")
-
-            if option.deprecated:
-                if out[-1] != "#":
-                    append_comment("")
-                append_comment(
-                    cli_util.style_for_cli("THIS IS DEPRECATED.", fg="yellow")
-                )
-                append_comment("")
-                for line in _clean_paragraphs(option.deprecation_text):
-                    append_comment(line)
-                append_comment("")
-                append_comment(
-                    f"This option will be removed on or after {option.expiration_date}."
-                )
+                    out.append("")
 
             import toml
 
@@ -135,22 +121,29 @@ def show_config(
 
             if len(toml_default) > 0:
                 # Ensure a line break before appending "Default" comment, if not already there
-                if out[-1] != "#":
-                    append_comment("")
-                append_comment(f"Default: {toml_default}")
+                if out[-1] != "":
+                    out.append("")
+                append_comment("Default: %s" % toml_default)
             else:
                 # Don't say "Default: (unset)" here because this branch applies
                 # to complex config settings too.
                 pass
+
+            if option.deprecated:
+                append_comment(cli_util.style_for_cli("DEPRECATED.", fg="yellow"))
+                for line in _clean_paragraphs(option.deprecation_text):
+                    append_comment(line)
+                append_comment(
+                    "This option will be removed on or after %s."
+                    % option.expiration_date
+                )
 
             option_is_manually_set = (
                 option.where_defined != ConfigOption.DEFAULT_DEFINITION
             )
 
             if option_is_manually_set:
-                if out[-1] != "# ":
-                    append_comment("")
-                append_comment(f"The value below was set in {option.where_defined}")
+                append_comment("The value below was set in %s" % option.where_defined)
 
             toml_setting = toml.dumps({key: option.value})
 
@@ -177,7 +170,8 @@ def _clean_paragraphs(txt: str) -> list[str]:
     # Strip both leading and trailing newlines.
     txt = txt.strip("\n")
     paragraphs = txt.split("\n\n")
-    return [
+    cleaned_paragraphs = [
         "\n".join(_clean(line) for line in paragraph.split("\n"))
         for paragraph in paragraphs
     ]
+    return cleaned_paragraphs
