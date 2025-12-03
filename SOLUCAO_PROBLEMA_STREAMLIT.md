@@ -66,3 +66,4 @@ taskkill /F /IM streamlit.exe
 2. Se ainda não funcionar, use a porta alternativa (8502)
 3. Verifique se há múltiplas instâncias do Streamlit rodando
 
+
