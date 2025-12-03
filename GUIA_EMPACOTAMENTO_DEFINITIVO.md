@@ -157,12 +157,69 @@ import sys
 import os
 from auth_simple import verificar_login
 
-# Função CRÍTICA para caminhos
-def get_base_path():
-    """Retorna o caminho base correto para LEITURA de dados"""
+# CORREÇÃO CRÍTICA: Garantir diretório de trabalho correto para portabilidade
+def ensure_working_directory():
+    """Garante que o diretório de trabalho seja o diretório do executável"""
     if hasattr(sys, '_MEIPASS'):
-        # Rodando no executável - apontar para _internal
-        return sys._MEIPASS
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                os.chdir(exe_dir)
+        except Exception:
+            pass
+        # Limpar variáveis de ambiente que podem causar problemas
+        for var in ['VIRTUAL_ENV', 'PYTHONHOME', 'CONDA_DEFAULT_ENV']:
+            if var in os.environ:
+                del os.environ[var]
+
+# Executar imediatamente ao importar
+ensure_working_directory()
+
+# Função CRÍTICA para caminhos (COM PORTABILIDADE)
+def get_base_path():
+    """Retorna o caminho base correto para LEITURA de dados
+    
+    Estratégia de busca para portabilidade:
+    1. No executável: primeiro tenta _internal (onde dados são copiados)
+    2. Se não encontrar, tenta diretório do executável (para quando pasta é movida)
+    3. Em desenvolvimento: usa diretório do script
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # Rodando no executável PyInstaller
+        # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+        
+        # 1. Primeiro tentar _internal (onde dados são copiados no build)
+        try:
+            meipass_path = os.path.abspath(sys._MEIPASS)
+            if os.path.exists(meipass_path):
+                # Verificar se existe pasta KE5Z em _internal
+                ke5z_path = os.path.join(meipass_path, "KE5Z")
+                if os.path.exists(ke5z_path):
+                    return meipass_path
+        except Exception:
+            pass
+        
+        # 2. Fallback: tentar diretório do executável (para quando pasta é movida)
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                # Verificar se existe pasta KE5Z ou _internal/KE5Z no diretório do executável
+                ke5z_path_exe = os.path.join(exe_dir, "KE5Z")
+                ke5z_path_internal = os.path.join(exe_dir, "_internal", "KE5Z")
+                if os.path.exists(ke5z_path_exe):
+                    return exe_dir
+                elif os.path.exists(ke5z_path_internal):
+                    return os.path.join(exe_dir, "_internal")
+        except Exception:
+            pass
+        
+        # 3. Último fallback: usar _MEIPASS mesmo que não exista (pode ser temporário)
+        try:
+            return os.path.abspath(sys._MEIPASS)
+        except Exception:
+            return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.abspath(__file__))
@@ -179,18 +236,38 @@ st.set_page_config(
 if not verificar_login():
     st.stop()
 
-# Carregar dados
+# Carregar dados (COM BUSCA EM MÚLTIPLOS LOCAIS)
 @st.cache_data
 def load_data():
     try:
         base_path = get_base_path()
-        arquivo_parquet = os.path.join(base_path, "KE5Z", "KE5Z.parquet")
         
-        if os.path.exists(arquivo_parquet):
+        # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+        locais_possiveis = []
+        locais_possiveis.append(os.path.join(base_path, "KE5Z", "KE5Z.parquet"))
+        
+        # Se estiver no executável, tentar também diretório do executável
+        if hasattr(sys, '_MEIPASS'):
+            try:
+                exe_path = os.path.abspath(sys.executable)
+                exe_dir = os.path.dirname(exe_path)
+                locais_possiveis.append(os.path.join(exe_dir, "KE5Z", "KE5Z.parquet"))
+                locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", "KE5Z.parquet"))
+            except Exception:
+                pass
+        
+        # Procurar arquivo nos locais possíveis
+        arquivo_parquet = None
+        for local in locais_possiveis:
+            if os.path.exists(local):
+                arquivo_parquet = local
+                break
+        
+        if arquivo_parquet and os.path.exists(arquivo_parquet):
             df = pd.read_parquet(arquivo_parquet)
             return df
         else:
-            st.error("❌ Arquivo de dados não encontrado!")
+            st.error("❌ Arquivo de dados não encontrado em nenhum local!")
             return pd.DataFrame()
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
@@ -276,16 +353,52 @@ def processar_dados():
 
 ### 4.1 Padrão de Caminhos (CRÍTICO)
 
-#### **Função para LEITURA de Dados**
+#### **Função para LEITURA de Dados (COM PORTABILIDADE)**
 ```python
 import sys
 import os
 
 def get_base_path():
-    """Retorna o caminho base correto para LEITURA de dados"""
+    """Retorna o caminho base correto para LEITURA de dados
+    
+    Estratégia de busca para portabilidade:
+    1. No executável: primeiro tenta _internal (onde dados são copiados)
+    2. Se não encontrar, tenta diretório do executável (para quando pasta é movida)
+    3. Em desenvolvimento: usa diretório do script
+    """
     if hasattr(sys, '_MEIPASS'):
-        # Rodando no executável PyInstaller - apontar para _internal
-        return sys._MEIPASS
+        # Rodando no executável PyInstaller
+        # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+        
+        # 1. Primeiro tentar _internal (onde dados são copiados no build)
+        try:
+            meipass_path = os.path.abspath(sys._MEIPASS)
+            if os.path.exists(meipass_path):
+                ke5z_path = os.path.join(meipass_path, "KE5Z")
+                if os.path.exists(ke5z_path):
+                    return meipass_path
+        except Exception:
+            pass
+        
+        # 2. Fallback: tentar diretório do executável (para quando pasta é movida)
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                ke5z_path_exe = os.path.join(exe_dir, "KE5Z")
+                ke5z_path_internal = os.path.join(exe_dir, "_internal", "KE5Z")
+                if os.path.exists(ke5z_path_exe):
+                    return exe_dir
+                elif os.path.exists(ke5z_path_internal):
+                    return os.path.join(exe_dir, "_internal")
+        except Exception:
+            pass
+        
+        # 3. Último fallback: usar _MEIPASS mesmo que não exista
+        try:
+            return os.path.abspath(sys._MEIPASS)
+        except Exception:
+            return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.abspath(__file__))
@@ -723,19 +836,68 @@ Dashboard_KE5Z_OFICIAL.exe
 **Soluções**:
 ```python
 # 1. Verificar se está usando get_base_path() corretamente
-# Em TODOS os arquivos Python
+# Em TODOS os arquivos Python (com busca em múltiplos locais)
 
 # 2. Verificar se os arquivos estão no _internal
 dir _internal\KE5Z
 dir _internal\Extracoes
 
-# 3. Adicionar debug no código
+# 3. Se a pasta foi movida, verificar estrutura:
+# - Se dados estão em exe_dir/KE5Z/
+# - Se dados estão em exe_dir/_internal/KE5Z/
+# - Se dados estão em _MEIPASS/KE5Z/
+
+# 4. Adicionar debug no código
 import sys
 import os
 
-base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
-print(f"Base path: {base_path}")
+def get_base_path():
+    """Versão com debug"""
+    if hasattr(sys, '_MEIPASS'):
+        meipass_path = os.path.abspath(sys._MEIPASS)
+        print(f"_MEIPASS: {meipass_path}")
+        if os.path.exists(meipass_path):
+            ke5z_path = os.path.join(meipass_path, "KE5Z")
+            print(f"KE5Z em _MEIPASS: {os.path.exists(ke5z_path)}")
+            if os.path.exists(ke5z_path):
+                return meipass_path
+        
+        exe_path = os.path.abspath(sys.executable)
+        exe_dir = os.path.dirname(exe_path)
+        print(f"Exe dir: {exe_dir}")
+        ke5z_path_exe = os.path.join(exe_dir, "KE5Z")
+        ke5z_path_internal = os.path.join(exe_dir, "_internal", "KE5Z")
+        print(f"KE5Z em exe_dir: {os.path.exists(ke5z_path_exe)}")
+        print(f"KE5Z em exe_dir/_internal: {os.path.exists(ke5z_path_internal)}")
+        
+        if os.path.exists(ke5z_path_exe):
+            return exe_dir
+        elif os.path.exists(ke5z_path_internal):
+            return os.path.join(exe_dir, "_internal")
+    
+    return os.path.dirname(os.path.abspath(__file__))
+
+base_path = get_base_path()
+print(f"Base path final: {base_path}")
 print(f"Arquivos em KE5Z: {os.listdir(os.path.join(base_path, 'KE5Z'))}")
+```
+
+### 8.2.1 Problema: Sistema não funciona quando pasta é movida
+
+**Sintomas**: Executável funciona no PC original, mas não funciona quando pasta é copiada para outro local
+
+**Causa**: Caminhos hardcoded ou falta de busca em múltiplos locais
+
+**Solução**: Usar função `get_base_path()` atualizada que busca em múltiplos locais:
+1. `_internal/KE5Z/` (local padrão do build)
+2. `exe_dir/KE5Z/` (diretório do executável)
+3. `exe_dir/_internal/KE5Z/` (fallback interno)
+
+**Verificação**:
+```python
+# Garantir que ensure_working_directory() está sendo chamada
+# Garantir que get_base_path() tenta múltiplos locais
+# Garantir que load_data() busca em múltiplos locais
 ```
 
 ### 8.3 Problema: Erro "No package metadata was found for streamlit"
@@ -1052,8 +1214,10 @@ dist/Dashboard_KE5Z_OFICIAL/
 1. **SEMPRE** usar `streamlit-desktop-app` para build
 2. **SEMPRE** copiar dados para `_internal/`
 3. **SEMPRE** manter `usuarios.json` FORA do `_internal/`
-4. **SEMPRE** usar `sys._MEIPASS` para leitura
+4. **SEMPRE** usar `get_base_path()` para leitura (com busca em múltiplos locais para portabilidade)
 5. **SEMPRE** usar `os.path.dirname(sys.executable)` para escrita
+6. **SEMPRE** chamar `ensure_working_directory()` no início do app.py
+7. **SEMPRE** buscar arquivos em múltiplos locais quando no executável (portabilidade)
 
 ---
 
@@ -1061,9 +1225,10 @@ dist/Dashboard_KE5Z_OFICIAL/
 
 *Este guia foi criado para garantir que qualquer IA possa reproduzir exatamente o mesmo resultado de empacotamento do Dashboard KE5Z.*
 
-*Versão: 4.0 - Definitivo e Completo*  
+*Versão: 4.1 - Definitivo e Completo com Portabilidade*  
 *Data: 25/10/2025*  
-*Status: ✅ TESTADO E FUNCIONANDO*
+*Status: ✅ TESTADO E FUNCIONANDO*  
+*Atualização: ✅ Sistema agora funciona quando pasta é movida (portabilidade)*
 
 ---
 
