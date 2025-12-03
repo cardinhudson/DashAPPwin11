@@ -100,6 +100,97 @@ if not os.path.exists(pasta):
 
 print(f"Pasta encontrada: {pasta}")
 
+# ================== FUNÇÃO DE DETECÇÃO AUTOMÁTICA DE CABEÇALHO ==================
+def detectar_linha_cabecalho(caminho_arquivo, max_linhas=20):
+    """
+    Detecta automaticamente a linha do cabeçalho procurando por palavras-chave conhecidas.
+    
+    Args:
+        caminho_arquivo: Caminho do arquivo a ser analisado
+        max_linhas: Número máximo de linhas para verificar
+    
+    Returns:
+        Número da linha do cabeçalho (0-indexed) ou None se não encontrar
+    """
+    # Palavras-chave que indicam que encontramos o cabeçalho
+    palavras_chave_cabecalho = [
+        'ano', 'período', 'periodo', 'nº conta', 'nºconta', 'conta',
+        'centro cst', 'centrocst', 'em mcont', 'mcont', 'valor',
+        'qtd', 'quantidade', 'doc.ref', 'docref', 'documento',
+        'dt.lçto', 'data', 'material', 'fornec', 'fornecedor',
+        'texto', 'cliente', 'usuário', 'usuario', 'tipo'
+    ]
+    
+    try:
+        with open(caminho_arquivo, 'r', encoding='latin1', errors='replace') as f:
+            linhas = []
+            for i, linha in enumerate(f):
+                if i >= max_linhas:
+                    break
+                linhas.append(linha.lower().strip())
+        
+        # Procurar linha que contenha múltiplas palavras-chave
+        melhor_linha = None
+        melhor_pontuacao = 0
+        
+        for i, linha in enumerate(linhas):
+            # Contar quantas palavras-chave aparecem nesta linha
+            pontuacao = sum(1 for palavra in palavras_chave_cabecalho if palavra in linha)
+            
+            # Bônus se a linha parece ser um cabeçalho (tem múltiplas colunas separadas por tab)
+            if '\t' in linha:
+                colunas = linha.split('\t')
+                if len(colunas) > 5:  # Cabeçalho geralmente tem muitas colunas
+                    pontuacao += 2
+            
+            # Bônus se não parece ser uma linha de dados numéricos
+            if not any(char.isdigit() for char in linha[:50]):
+                pontuacao += 1
+            
+            if pontuacao > melhor_pontuacao:
+                melhor_pontuacao = pontuacao
+                melhor_linha = i
+        
+        # Retornar apenas se encontrou uma linha com pelo menos 3 palavras-chave
+        if melhor_pontuacao >= 3:
+            return melhor_linha
+        
+        return None
+    except Exception as e:
+        print(f"   ⚠️  Erro ao detectar cabeçalho automaticamente: {str(e)[:100]}")
+        return None
+
+def validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
+    """
+    Valida se o DataFrame lido parece ter um cabeçalho válido.
+    
+    Args:
+        df_temp: DataFrame a ser validado
+        min_colunas: Número mínimo de colunas esperadas
+        min_linhas: Número mínimo de linhas esperadas
+    
+    Returns:
+        True se o cabeçalho parece válido, False caso contrário
+    """
+    if df_temp is None:
+        return False
+    
+    # Verificar número mínimo de colunas e linhas
+    if len(df_temp.columns) < min_colunas or len(df_temp) < min_linhas:
+        return False
+    
+    # Verificar se as colunas não são todas "Unnamed" (indica que não leu cabeçalho corretamente)
+    colunas_nomeadas = sum(1 for col in df_temp.columns if not str(col).startswith('Unnamed'))
+    if colunas_nomeadas < min_colunas:
+        return False
+    
+    # Verificar se não tem muitas colunas vazias (indica problema na leitura)
+    colunas_nao_vazias = sum(1 for col in df_temp.columns if df_temp[col].notna().any())
+    if colunas_nao_vazias < min_colunas:
+        return False
+    
+    return True
+
 # ================== FUNÇÃO DE PADRONIZAÇÃO DE COLUNAS ==================
 def padronizar_colunas(df, arquivo_nome=""):
     """
@@ -248,11 +339,43 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         print("Carregando dados...")
         df = None
         
-        # Tentar diferentes valores de skiprows (alguns arquivos podem ter cabeçalhos diferentes)
-        skiprows_tentativas = [9, 8, 10, 7, 11]
+        # ETAPA 1: Tentar detectar automaticamente a linha do cabeçalho
+        linha_detectada = detectar_linha_cabecalho(caminho_arquivo, max_linhas=25)
+        if linha_detectada is not None:
+            print(f"   🔍 Cabeçalho detectado automaticamente na linha {linha_detectada + 1}")
+        
+        # ETAPA 2: Construir lista de tentativas de skiprows (priorizar detecção automática)
+        skiprows_tentativas = []
+        
+        # Adicionar linha detectada automaticamente no início (se encontrada)
+        if linha_detectada is not None:
+            skiprows_tentativas.append(linha_detectada)
+            # Adicionar variações próximas da linha detectada
+            for offset in [-2, -1, 1, 2]:
+                valor = linha_detectada + offset
+                if 0 <= valor <= 20 and valor not in skiprows_tentativas:
+                    skiprows_tentativas.append(valor)
+        
+        # Adicionar valores padrão conhecidos (se ainda não foram adicionados)
+        valores_padrao = [9, 8, 10, 7, 11, 6, 12, 5, 13, 4, 14, 3, 15]
+        for valor in valores_padrao:
+            if valor not in skiprows_tentativas:
+                skiprows_tentativas.append(valor)
+        
+        # Garantir que temos pelo menos alguns valores para tentar
+        if not skiprows_tentativas:
+            skiprows_tentativas = list(range(3, 16))  # Tentar linhas 3 a 15
+        
+        print(f"   🔄 Tentando {len(skiprows_tentativas)} configurações diferentes de cabeçalho...")
+        
+        # ETAPA 3: Tentar ler com diferentes skiprows
+        melhor_df = None
+        melhor_pontuacao = 0
+        melhor_skiprows = None
         
         for skiprows_val in skiprows_tentativas:
             try:
+                # Tentar com engine C (mais rápido)
                 df_temp = pd.read_csv(
                     caminho_arquivo, 
                     sep='\t', 
@@ -261,32 +384,100 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                     engine='c',
                     low_memory=False
                 )
-                # Verificar se leu dados válidos (pelo menos algumas colunas e linhas)
-                if len(df_temp.columns) > 5 and len(df_temp) > 0:
-                    df = df_temp
-                    if skiprows_val != 9:
-                        print(f"   ℹ️  Arquivo lido com skiprows={skiprows_val} (padrão é 9)")
-                    break
-            except Exception as e:
-                if skiprows_val == skiprows_tentativas[-1]:
-                    # Última tentativa falhou, usar engine python como fallback
-                    try:
-                        df = pd.read_csv(
-                            caminho_arquivo, 
-                            sep='\t', 
-                            skiprows=9,
-                            encoding='latin1', 
-                            engine='python',
-                            low_memory=False
-                        )
-                        print(f"   ℹ️  Arquivo lido com engine python (fallback)")
+                
+                # Validar qualidade do cabeçalho
+                if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
+                    # Calcular pontuação de qualidade
+                    pontuacao = len(df_temp.columns) * 2  # Mais colunas = melhor
+                    pontuacao += len(df_temp)  # Mais linhas = melhor
+                    pontuacao += sum(1 for col in df_temp.columns if not str(col).startswith('Unnamed')) * 3
+                    
+                    # Se for a primeira leitura válida ou melhor que a anterior
+                    if melhor_df is None or pontuacao > melhor_pontuacao:
+                        melhor_df = df_temp
+                        melhor_pontuacao = pontuacao
+                        melhor_skiprows = skiprows_val
+                    
+                    # Se a pontuação for muito boa, usar imediatamente
+                    if pontuacao > 100:
+                        df = df_temp
+                        if skiprows_val != 9:
+                            print(f"   ✅ Arquivo lido com skiprows={skiprows_val} (detectado automaticamente)")
                         break
-                    except Exception as e2:
-                        raise Exception(f"Não foi possível ler o arquivo. Erros: {str(e)[:100]} | {str(e2)[:100]}")
-                continue
+                        
+            except Exception as e:
+                # Se engine C falhou, tentar engine Python para este skiprows
+                try:
+                    df_temp = pd.read_csv(
+                        caminho_arquivo, 
+                        sep='\t', 
+                        skiprows=skiprows_val,
+                        encoding='latin1', 
+                        engine='python',
+                        low_memory=False
+                    )
+                    
+                    if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
+                        pontuacao = len(df_temp.columns) * 2 + len(df_temp)
+                        pontuacao += sum(1 for col in df_temp.columns if not str(col).startswith('Unnamed')) * 3
+                        
+                        if melhor_df is None or pontuacao > melhor_pontuacao:
+                            melhor_df = df_temp
+                            melhor_pontuacao = pontuacao
+                            melhor_skiprows = skiprows_val
+                            
+                        if pontuacao > 100:
+                            df = df_temp
+                            print(f"   ✅ Arquivo lido com skiprows={skiprows_val} (engine python)")
+                            break
+                except Exception as e2:
+                    # Continuar para próxima tentativa
+                    continue
         
+        # ETAPA 4: Usar melhor DataFrame encontrado (se não foi definido ainda)
+        if df is None:
+            if melhor_df is not None:
+                df = melhor_df
+                if melhor_skiprows != 9:
+                    print(f"   ✅ Melhor configuração encontrada: skiprows={melhor_skiprows}")
+            else:
+                # Última tentativa desesperada: tentar sem skiprows e procurar cabeçalho
+                try:
+                    print(f"   ⚠️  Tentando leitura sem skiprows (última tentativa)...")
+                    df_temp = pd.read_csv(
+                        caminho_arquivo, 
+                        sep='\t', 
+                        encoding='latin1', 
+                        engine='python',
+                        low_memory=False,
+                        nrows=100  # Ler apenas primeiras 100 linhas para testar
+                    )
+                    
+                    # Procurar linha que parece ser cabeçalho
+                    for i in range(min(20, len(df_temp))):
+                        linha_teste = df_temp.iloc[i:i+1]
+                        if validar_cabecalho(linha_teste, min_colunas=5, min_linhas=0):
+                            # Reler arquivo completo com este skiprows
+                            df = pd.read_csv(
+                                caminho_arquivo, 
+                                sep='\t', 
+                                skiprows=i,
+                                encoding='latin1', 
+                                engine='python',
+                                low_memory=False
+                            )
+                            print(f"   ✅ Arquivo lido com skiprows={i} (descoberto na última tentativa)")
+                            break
+                except Exception as e3:
+                    pass
+        
+        # ETAPA 5: Verificação final
         if df is None or len(df) == 0:
-            raise Exception("Arquivo lido mas está vazio ou sem colunas válidas")
+            raise Exception("Arquivo lido mas está vazio ou sem colunas válidas após todas as tentativas")
+        
+        # Validar qualidade final
+        if not validar_cabecalho(df, min_colunas=5, min_linhas=1):
+            print(f"   ⚠️  AVISO: Cabeçalho pode não estar correto. Colunas: {list(df.columns)[:10]}")
         
         print(f"Carregado: {len(df):,} registros, {len(df.columns)} colunas")
         
