@@ -49,15 +49,47 @@ ensure_working_directory()
 
 # Detectar se está rodando no executável PyInstaller
 def get_base_path():
-    """Retorna o caminho base correto para LEITURA de dados"""
+    """Retorna o caminho base correto para LEITURA de dados
+    
+    Estratégia:
+    1. No executável: primeiro tenta _internal (onde dados são copiados)
+    2. Se não encontrar, tenta diretório do executável (para portabilidade)
+    3. Em desenvolvimento: usa diretório do script
+    """
     if hasattr(sys, '_MEIPASS'):
-        # Rodando no executável PyInstaller - apontar para _internal
-        # CORREÇÃO: Garantir que _MEIPASS seja sempre um caminho absoluto válido
-        meipass_path = os.path.abspath(sys._MEIPASS)
-        if os.path.exists(meipass_path):
-            return meipass_path
-        else:
-            # Fallback: retornar mesmo assim (pode ser temporário durante extração)
+        # Rodando no executável PyInstaller
+        # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+        
+        # 1. Primeiro tentar _internal (onde dados são copiados no build)
+        try:
+            meipass_path = os.path.abspath(sys._MEIPASS)
+            if os.path.exists(meipass_path):
+                # Verificar se existe pasta KE5Z em _internal
+                ke5z_path = os.path.join(meipass_path, "KE5Z")
+                if os.path.exists(ke5z_path):
+                    return meipass_path
+        except Exception:
+            pass
+        
+        # 2. Fallback: tentar diretório do executável (para quando pasta é movida)
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                # Verificar se existe pasta KE5Z ou _internal/KE5Z no diretório do executável
+                ke5z_path_exe = os.path.join(exe_dir, "KE5Z")
+                ke5z_path_internal = os.path.join(exe_dir, "_internal", "KE5Z")
+                if os.path.exists(ke5z_path_exe):
+                    return exe_dir
+                elif os.path.exists(ke5z_path_internal):
+                    return os.path.join(exe_dir, "_internal")
+        except Exception:
+            pass
+        
+        # 3. Último fallback: usar _MEIPASS mesmo que não exista (pode ser temporário)
+        try:
+            return os.path.abspath(sys._MEIPASS)
+        except Exception:
             return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
@@ -129,16 +161,63 @@ def load_data_optimized(arquivo_tipo="completo"):
     
     nome_arquivo = arquivos_disponiveis.get(arquivo_tipo, "KE5Z.parquet")
     base_path = get_base_path()
-    arquivo_parquet = os.path.join(base_path, "KE5Z", nome_arquivo)
+    
+    # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+    # Lista de locais possíveis para procurar o arquivo
+    locais_possiveis = []
+    
+    # 1. Local padrão (base_path/KE5Z/)
+    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
+    
+    # 2. Se estiver no executável, tentar também diretório do executável
+    if hasattr(sys, '_MEIPASS'):
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            # Tentar exe_dir/KE5Z/
+            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
+            # Tentar exe_dir/_internal/KE5Z/
+            locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
+        except Exception:
+            pass
+    
+    # Procurar arquivo nos locais possíveis
+    arquivo_parquet = None
+    for local in locais_possiveis:
+        if os.path.exists(local):
+            arquivo_parquet = local
+            break
+    
+    # Se não encontrou, usar o primeiro local (para mensagem de erro)
+    if arquivo_parquet is None:
+        arquivo_parquet = locais_possiveis[0]
     
     try:
         if not os.path.exists(arquivo_parquet):
-            # Se arquivo específico não existe, tentar arquivo completo
+            # Se arquivo específico não existe, tentar arquivo completo nos mesmos locais
             if arquivo_tipo != "completo":
-                st.warning(f"⚠️ Arquivo {nome_arquivo} não encontrado, carregando dados completos...")
-                # CORREÇÃO: Evitar loop infinito - carregar diretamente o arquivo completo
-                arquivo_completo = os.path.join(base_path, "KE5Z", "KE5Z.parquet")
-                if os.path.exists(arquivo_completo):
+                # Tentar encontrar arquivo completo
+                arquivo_completo = None
+                for base in [base_path]:
+                    if hasattr(sys, '_MEIPASS'):
+                        try:
+                            exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+                            for base_alt in [base_path, exe_dir, os.path.join(exe_dir, "_internal")]:
+                                caminho_completo = os.path.join(base_alt, "KE5Z", "KE5Z.parquet")
+                                if os.path.exists(caminho_completo):
+                                    arquivo_completo = caminho_completo
+                                    break
+                        except Exception:
+                            pass
+                    if arquivo_completo:
+                        break
+                    caminho_completo = os.path.join(base, "KE5Z", "KE5Z.parquet")
+                    if os.path.exists(caminho_completo):
+                        arquivo_completo = caminho_completo
+                        break
+                
+                if arquivo_completo and os.path.exists(arquivo_completo):
+                    st.warning(f"⚠️ Arquivo {nome_arquivo} não encontrado, carregando dados completos...")
                     df = pd.read_parquet(arquivo_completo)
                     # Aplicar filtro especial para main_filtered (cloud mode)
                     if arquivo_tipo == "main_filtered" and 'USI' in df.columns:
@@ -146,7 +225,7 @@ def load_data_optimized(arquivo_tipo="completo"):
                         st.sidebar.info(f"🔄 Filtro aplicado: {len(df):,} registros (Others removidos)")
                     return df
                 else:
-                    raise FileNotFoundError(f"Arquivo completo também não encontrado: {arquivo_completo}")
+                    raise FileNotFoundError(f"Arquivo completo também não encontrado em nenhum local")
             raise FileNotFoundError(f"Arquivo não encontrado: {arquivo_parquet}")
         
         # Verificar tamanho do arquivo
