@@ -37,12 +37,14 @@ echo 📁 Copiando dados para _internal...
 echo.
 
 REM Copiar pastas de dados
+REM CRÍTICO: Pasta KE5Z DEVE estar no _internal (dados processados)
 if exist "KE5Z" (
     echo    Copiando KE5Z...
     xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y >nul
-    echo    ✅ KE5Z copiado
+    echo    ✅ KE5Z copiado para _internal
 ) else (
     echo    ⚠️  Pasta KE5Z não encontrada
+    echo    ⚠️  AVISO: Pasta KE5Z é OBRIGATÓRIA dentro do _internal
 )
 
 if exist "Extracoes" (
@@ -53,12 +55,15 @@ if exist "Extracoes" (
     echo    ⚠️  Pasta Extracoes não encontrada
 )
 
+REM CRÍTICO: Pasta arquivos deve estar no _internal (mesmo que vazia)
 if exist "arquivos" (
     echo    Copiando arquivos...
     xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y >nul
-    echo    ✅ arquivos copiado
+    echo    ✅ arquivos copiado para _internal
 ) else (
-    echo    ⚠️  Pasta arquivos não encontrada
+    echo    ⚠️  Pasta arquivos não encontrada - criando vazia no _internal
+    if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos"
+    echo    ✅ Pasta arquivos criada no _internal (será preenchida pela extração)
 )
 
 if exist "pages" (

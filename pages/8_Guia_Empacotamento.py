@@ -795,21 +795,50 @@ st.markdown("""
 - ✅ `usuarios_padrao.json`
 """)
 
-st.markdown("#### **Dentro do _internal:**")
+st.markdown("#### **Dentro do _internal (CRÍTICO - DEVEM SER COPIADAS):**")
 st.markdown("""
 - ✅ `app.py`
 - ✅ `auth_simple.py`
 - ✅ `Extracao.py`
 - ✅ `pages/` (pasta com 8 arquivos .py)
-- ✅ `KE5Z/` (pasta com arquivos .parquet)
+- ✅ **`KE5Z/`** ⚠️ **OBRIGATÓRIO** - Pasta com arquivos .parquet (dados processados)
+- ✅ **`arquivos/`** ⚠️ **OBRIGATÓRIO** - Pasta com arquivos Excel gerados
 - ✅ `Extracoes/` (pasta com dados brutos)
-- ✅ `arquivos/` (pasta com arquivos Excel)
 - ✅ `dados_equipe.json`
 - ✅ `Dados SAPIENS.xlsx`
 - ✅ `Fornecedores.xlsx`
 - ✅ `streamlit/` (pacote completo)
 - ✅ `pandas/` (pacote completo)
 - ✅ `streamlit-1.50.0.dist-info/` (metadados)
+""")
+
+st.markdown("#### **⚠️ IMPORTANTE: Pastas KE5Z e arquivos DEVEM estar dentro do _internal**")
+st.markdown("""
+**REGRA CRÍTICA**: As pastas `KE5Z/` e `arquivos/` **DEVEM** ser copiadas para dentro do `_internal/` durante o build.
+
+**Por quê?**
+- `KE5Z/`: Contém os dados processados (.parquet) que o sistema lê
+- `arquivos/`: Contém os arquivos Excel gerados pela extração
+
+**O script `criar_executavel_oficial.bat` já faz isso automaticamente:**
+```batch
+xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y
+xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y
+```
+
+**Estrutura correta após o build:**
+```
+_internal/
+├── KE5Z/              ← Dados processados (LEITURA)
+│   ├── KE5Z.parquet
+│   ├── KE5Z_main.parquet
+│   └── ...
+└── arquivos/          ← Arquivos Excel gerados (ESCRITA - pode ser criada pela extração)
+    ├── KE5Z_LC.xlsx
+    └── ...
+```
+
+**Nota**: A pasta `arquivos/` pode ser criada vazia no build, pois será preenchida quando a extração for executada.
 """)
 
 st.markdown("### 6.5 Regra de Ouro: O que vai onde?")

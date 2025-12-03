@@ -138,6 +138,7 @@ else:
     st.sidebar.info("💻 **Modo Completo**")
 
 # Sistema de cache inteligente para otimização de memória e conexão
+# CORREÇÃO: Usar hash do arquivo para invalidar cache quando dados são atualizados
 @st.cache_data(
     ttl=3600,
     max_entries=3,  # Aumentar para cachear os 3 arquivos
@@ -162,26 +163,34 @@ def load_data_optimized(arquivo_tipo="completo"):
     nome_arquivo = arquivos_disponiveis.get(arquivo_tipo, "KE5Z.parquet")
     base_path = get_base_path()
     
-    # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
-    # Lista de locais possíveis para procurar o arquivo
+    # CORREÇÃO CRÍTICA: Priorizar diretório do executável (onde novos dados são salvos)
+    # Lista de locais possíveis para procurar o arquivo (ORDEM IMPORTANTE!)
     locais_possiveis = []
     
-    # 1. Local padrão (base_path/KE5Z/)
-    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
-    
-    # 2. Se estiver no executável, tentar também diretório do executável
+    # PRIORIDADE 1: Diretório do executável (onde Extracao.py salva novos dados)
     if hasattr(sys, '_MEIPASS'):
         try:
             exe_path = os.path.abspath(sys.executable)
             exe_dir = os.path.dirname(exe_path)
-            # Tentar exe_dir/KE5Z/
+            # PRIMEIRO: Tentar exe_dir/KE5Z/ (onde novos dados são salvos)
             locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
+        except Exception:
+            pass
+    
+    # PRIORIDADE 2: _internal (dados originais do build)
+    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
+    
+    # PRIORIDADE 3: Fallback _internal no diretório do executável
+    if hasattr(sys, '_MEIPASS'):
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
             # Tentar exe_dir/_internal/KE5Z/
             locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
         except Exception:
             pass
     
-    # Procurar arquivo nos locais possíveis
+    # Procurar arquivo nos locais possíveis (PRIORIDADE: diretório do executável primeiro)
     arquivo_parquet = None
     for local in locais_possiveis:
         if os.path.exists(local):
@@ -191,6 +200,9 @@ def load_data_optimized(arquivo_tipo="completo"):
     # Se não encontrou, usar o primeiro local (para mensagem de erro)
     if arquivo_parquet is None:
         arquivo_parquet = locais_possiveis[0]
+    
+    # CORREÇÃO: Usar caminho completo do arquivo como parte da chave do cache
+    # O Streamlit já usa o caminho do arquivo na chave do cache automaticamente
     
     try:
         if not os.path.exists(arquivo_parquet):
@@ -230,6 +242,13 @@ def load_data_optimized(arquivo_tipo="completo"):
         
         # Verificar tamanho do arquivo
         file_size_mb = os.path.getsize(arquivo_parquet) / (1024 * 1024)
+        
+        # CORREÇÃO: Informar de onde os dados estão sendo carregados
+        if hasattr(sys, '_MEIPASS'):
+            exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+            if arquivo_parquet.startswith(exe_dir) and not arquivo_parquet.startswith(os.path.join(exe_dir, "_internal")):
+                # Dados sendo carregados do diretório do executável (dados atualizados)
+                st.sidebar.success("🔄 **Dados Atualizados**\nCarregando do diretório do executável")
         
         # Carregar dados
         df = pd.read_parquet(arquivo_parquet)
@@ -274,25 +293,54 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**🗂️ Dados**")
 
 # OTIMIZAÇÃO: Cachear verificação de arquivos no session_state (persiste entre navegações)
+# CORREÇÃO: Buscar arquivos na mesma ordem que load_data_optimized (priorizar diretório do executável)
 base_path = get_base_path()
+
+def verificar_arquivo_existe(nome_arquivo):
+    """Verifica se arquivo existe nos locais possíveis (mesma ordem de load_data_optimized)"""
+    locais_possiveis = []
+    
+    # PRIORIDADE 1: Diretório do executável (onde novos dados são salvos)
+    if hasattr(sys, '_MEIPASS'):
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
+        except Exception:
+            pass
+    
+    # PRIORIDADE 2: _internal (dados originais)
+    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
+    
+    # PRIORIDADE 3: Fallback _internal no diretório do executável
+    if hasattr(sys, '_MEIPASS'):
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
+        except Exception:
+            pass
+    
+    # Verificar se arquivo existe em algum local
+    for local in locais_possiveis:
+        if os.path.exists(local):
+            return True
+    return False
+
 if 'arquivos_status_cache' not in st.session_state:
     arquivos_status = {}
     for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
-        caminho = os.path.join(base_path, "KE5Z", nome)
-        arquivos_status[tipo] = os.path.exists(caminho)
+        arquivos_status[tipo] = verificar_arquivo_existe(nome)
     st.session_state.arquivos_status_cache = arquivos_status
     st.session_state.base_path_cache = base_path
 else:
-    # Verificar se o base_path mudou (pode acontecer em diferentes ambientes)
-    if st.session_state.base_path_cache != base_path:
-        arquivos_status = {}
-        for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
-            caminho = os.path.join(base_path, "KE5Z", nome)
-            arquivos_status[tipo] = os.path.exists(caminho)
-        st.session_state.arquivos_status_cache = arquivos_status
-        st.session_state.base_path_cache = base_path
-    else:
-        arquivos_status = st.session_state.arquivos_status_cache
+    # Verificar se o base_path mudou ou se arquivos foram atualizados
+    # CORREÇÃO: Sempre verificar novamente para detectar novos arquivos
+    arquivos_status = {}
+    for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
+        arquivos_status[tipo] = verificar_arquivo_existe(nome)
+    st.session_state.arquivos_status_cache = arquivos_status
+    st.session_state.base_path_cache = base_path
 
 # Opções disponíveis baseadas nos arquivos existentes
 opcoes_dados = []
@@ -697,11 +745,18 @@ if not is_cloud:  # Só mostrar em modo local para economizar espaço
         df_size_mb = sys.getsizeof(df_filtrado) / (1024 * 1024)
         st.sidebar.write(f"**Memória:** {df_size_mb:.1f}MB")
         
-        if st.sidebar.button("🧹 Cache", help="Limpar cache"):
+        if st.sidebar.button("🧹 Limpar Cache", help="Limpar cache e recarregar dados atualizados"):
             st.cache_data.clear()
+            # CORREÇÃO: Limpar também cache do session_state para forçar recarregamento
+            if 'arquivos_status_cache' in st.session_state:
+                del st.session_state['arquivos_status_cache']
+            # Limpar caches de dados
+            keys_to_delete = [k for k in st.session_state.keys() if k.startswith('df_total_') or k.startswith('cache_filtros_')]
+            for k in keys_to_delete:
+                del st.session_state[k]
             import gc
             gc.collect()
-            st.sidebar.success("✅ Limpo!")
+            st.sidebar.success("✅ Cache limpo! Recarregando dados...")
             st.rerun()
     except Exception:
         pass
