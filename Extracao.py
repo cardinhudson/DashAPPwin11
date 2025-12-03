@@ -449,8 +449,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         encoding='latin1', 
                         engine='c',
                         low_memory=False,
-                        on_bad_lines='skip',  # Pular linhas com erro de parsing
-                        warn_bad_lines=True   # Avisar sobre linhas puladas
+                        on_bad_lines='skip'  # Pular linhas com erro de parsing
                     )
                 except TypeError:
                     # Se engine C não suporta on_bad_lines, tentar sem (pode falhar mas vamos tratar)
@@ -494,8 +493,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         encoding='latin1', 
                         engine='python',
                         low_memory=False,
-                        on_bad_lines='skip',  # Pular linhas com erro de parsing
-                        warn_bad_lines=True   # Avisar sobre linhas puladas
+                        on_bad_lines='skip'  # Pular linhas com erro de parsing
                     )
                     
                     if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
@@ -533,8 +531,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         engine='python',
                         low_memory=False,
                         nrows=100,  # Ler apenas primeiras 100 linhas para testar
-                        on_bad_lines='skip',  # Pular linhas com erro de parsing
-                        warn_bad_lines=True   # Avisar sobre linhas puladas
+                        on_bad_lines='skip'  # Pular linhas com erro de parsing
                     )
                     
                     # Procurar linha que parece ser cabeçalho
@@ -550,8 +547,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                                 encoding='latin1', 
                                 engine='python',
                                 low_memory=False,
-                                on_bad_lines='skip',  # Pular linhas com erro de parsing
-                                warn_bad_lines=True   # Avisar sobre linhas puladas
+                                on_bad_lines='skip'  # Pular linhas com erro de parsing
                             )
                             print(f"   ✅ Arquivo lido com skiprows={i} (descoberto na última tentativa)")
                             break
@@ -670,8 +666,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                 encoding='latin1',
                 engine='python',
                 low_memory=False,
-                on_bad_lines='skip',  # Pular linhas com erro
-                warn_bad_lines=True
+                on_bad_lines='skip'  # Pular linhas com erro
             )
             
             if validar_cabecalho(df, min_colunas=5, min_linhas=1):
@@ -823,8 +818,7 @@ if pasta_ksbb:
                 engine='python',
                 skiprows=3,
                 skipfooter=1,
-                on_bad_lines='skip',  # Pular linhas com erro de parsing
-                warn_bad_lines=True   # Avisar sobre linhas puladas
+                on_bad_lines='skip'  # Pular linhas com erro de parsing
             )
 
             # remover espaços em branco dos nomes das colunas
