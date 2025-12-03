@@ -163,28 +163,20 @@ def load_data_optimized(arquivo_tipo="completo"):
     nome_arquivo = arquivos_disponiveis.get(arquivo_tipo, "KE5Z.parquet")
     base_path = get_base_path()
     
-    # CORREÇÃO CRÍTICA: Priorizar diretório do executável (onde novos dados são salvos)
-    # Lista de locais possíveis para procurar o arquivo (ORDEM IMPORTANTE!)
+    # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+    # Lista de locais possíveis para procurar o arquivo
     locais_possiveis = []
     
-    # PRIORIDADE 1: Diretório do executável (onde Extracao.py salva novos dados)
-    if hasattr(sys, '_MEIPASS'):
-        try:
-            exe_path = os.path.abspath(sys.executable)
-            exe_dir = os.path.dirname(exe_path)
-            # PRIMEIRO: Tentar exe_dir/KE5Z/ (onde novos dados são salvos)
-            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
-        except Exception:
-            pass
-    
-    # PRIORIDADE 2: _internal (dados originais do build)
+    # 1. Local padrão (base_path/KE5Z/) - _internal onde dados são salvos
     locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
     
-    # PRIORIDADE 3: Fallback _internal no diretório do executável
+    # 2. Se estiver no executável, tentar também diretório do executável (para portabilidade)
     if hasattr(sys, '_MEIPASS'):
         try:
             exe_path = os.path.abspath(sys.executable)
             exe_dir = os.path.dirname(exe_path)
+            # Tentar exe_dir/KE5Z/ (fallback para portabilidade)
+            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
             # Tentar exe_dir/_internal/KE5Z/
             locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
         except Exception:
@@ -243,13 +235,6 @@ def load_data_optimized(arquivo_tipo="completo"):
         # Verificar tamanho do arquivo
         file_size_mb = os.path.getsize(arquivo_parquet) / (1024 * 1024)
         
-        # CORREÇÃO: Informar de onde os dados estão sendo carregados
-        if hasattr(sys, '_MEIPASS'):
-            exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-            if arquivo_parquet.startswith(exe_dir) and not arquivo_parquet.startswith(os.path.join(exe_dir, "_internal")):
-                # Dados sendo carregados do diretório do executável (dados atualizados)
-                st.sidebar.success("🔄 **Dados Atualizados**\nCarregando do diretório do executável")
-        
         # Carregar dados
         df = pd.read_parquet(arquivo_parquet)
         
@@ -300,23 +285,15 @@ def verificar_arquivo_existe(nome_arquivo):
     """Verifica se arquivo existe nos locais possíveis (mesma ordem de load_data_optimized)"""
     locais_possiveis = []
     
-    # PRIORIDADE 1: Diretório do executável (onde novos dados são salvos)
+    # 1. Local padrão (base_path/KE5Z/) - _internal onde dados são salvos
+    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
+    
+    # 2. Se estiver no executável, tentar também diretório do executável (para portabilidade)
     if hasattr(sys, '_MEIPASS'):
         try:
             exe_path = os.path.abspath(sys.executable)
             exe_dir = os.path.dirname(exe_path)
             locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
-        except Exception:
-            pass
-    
-    # PRIORIDADE 2: _internal (dados originais)
-    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
-    
-    # PRIORIDADE 3: Fallback _internal no diretório do executável
-    if hasattr(sys, '_MEIPASS'):
-        try:
-            exe_path = os.path.abspath(sys.executable)
-            exe_dir = os.path.dirname(exe_path)
             locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
         except Exception:
             pass

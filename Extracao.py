@@ -94,29 +94,21 @@ def get_base_path():
 def get_output_path():
     """Retorna o caminho correto para ESCRITA de dados (PORTÁVEL)
     
-    No executável: salvar no diretório do executável (fora do _internal)
+    No executável: salvar dentro do _internal (onde dados são lidos)
     Em desenvolvimento: mesmo diretório do script
     """
     if hasattr(sys, '_MEIPASS'):
-        # No executável: salvar no diretório do executável (fora do _internal)
+        # No executável: salvar dentro do _internal (mesmo local onde dados são lidos)
         try:
-            exe_path = os.path.abspath(sys.executable)
-            exe_dir = os.path.dirname(exe_path)
-            
-            # Verificar se o diretório existe e é válido
-            if os.path.exists(exe_dir) and os.path.isdir(exe_dir):
-                return exe_dir
+            meipass_path = os.path.abspath(sys._MEIPASS)
+            if os.path.exists(meipass_path):
+                return meipass_path
             else:
-                # Se não existe, tentar criar ou usar diretório atual
-                try:
-                    os.makedirs(exe_dir, exist_ok=True)
-                    return exe_dir
-                except Exception:
-                    # Fallback: usar diretório atual de trabalho
-                    return os.path.abspath(os.getcwd())
-        except Exception as e:
-            # Fallback em caso de erro: usar diretório atual
-            return os.path.abspath(os.getcwd())
+                # Fallback: usar _MEIPASS mesmo que não exista
+                return sys._MEIPASS
+        except Exception:
+            # Fallback: usar _MEIPASS
+            return sys._MEIPASS
     else:
         # Em desenvolvimento: mesmo diretório
         return os.path.dirname(os.path.abspath(__file__))
