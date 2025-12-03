@@ -158,19 +158,19 @@ def fazer_login(usuario: str, senha: str, modo_operacao: str) -> bool:
 def exibir_header_usuario():
     """Exibe o header com informações do usuário"""
     if 'usuario_nome' in st.session_state:
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2, col3 = st.columns([2.5, 1.2, 0.8])
         
         with col1:
             tipo_icon = "👑" if st.session_state.get('usuario_tipo') == 'administrador' else "👥"
-            st.write(f"{tipo_icon} **Usuário:** {st.session_state.usuario_nome}")
+            st.markdown(f"{tipo_icon} **Usuário:** {st.session_state.usuario_nome}")
         
         with col2:
             modo_icon = "☁️" if st.session_state.get('modo_operacao') == 'cloud' else "💻"
-            modo_text = "Cloud" if st.session_state.get('modo_operacao') == 'cloud' else "Completo"
-            st.write(f"{modo_icon} **Modo:** {modo_text}")
+            modo_text = "Cloud" if st.session_state.get('modo_operacao') == 'cloud' else "Local"
+            st.markdown(f"{modo_icon} **Modo:** {modo_text}")
         
         with col3:
-            if st.button("🚪 Logout", use_container_width=True):
+            if st.button("🚪 Sair", use_container_width=True, key="logout_btn"):
                 logout()
 
 def logout():
