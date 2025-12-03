@@ -43,8 +43,9 @@ if exist "KE5Z" (
     xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y >nul
     echo    ✅ KE5Z copiado para _internal
 ) else (
-    echo    ⚠️  Pasta KE5Z não encontrada
-    echo    ⚠️  AVISO: Pasta KE5Z é OBRIGATÓRIA dentro do _internal
+    echo    ⚠️  Pasta KE5Z não encontrada - criando vazia no _internal
+    if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z"
+    echo    ✅ Pasta KE5Z criada no _internal (será preenchida pela extração)
 )
 
 if exist "Extracoes" (
