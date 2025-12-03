@@ -1038,13 +1038,39 @@ if 'Type 07' in df_filtrado.columns:
                     observed=True  # Suprimir FutureWarning
                 ).reset_index()
                 
-                # Converter colunas monetárias em numéricas e preencher NaN apenas nelas
+                # CORREÇÃO CRÍTICA: Converter TODAS as colunas de Período (criadas pelo pivot_table)
+                # antes de qualquer fillna. O pivot_table pode criar colunas Categorical.
                 valor_cols_type07 = [col for col in type07_pivot.columns if col not in ['Type 05', 'Type 06', 'Type 07']]
-                type07_pivot[valor_cols_type07] = (
-                    type07_pivot[valor_cols_type07]
-                    .apply(pd.to_numeric, errors='coerce')
-                    .fillna(0)
-                )
+                
+                # Converter TODAS as colunas de valor, tratando Categorical de forma segura
+                for col in valor_cols_type07:
+                    try:
+                        if pd.api.types.is_categorical_dtype(type07_pivot[col]):
+                            # Categorical: converter para string primeiro, depois numérico
+                            type07_pivot[col] = pd.to_numeric(type07_pivot[col].astype(str), errors='coerce')
+                        elif pd.api.types.is_object_dtype(type07_pivot[col]):
+                            # Object: tentar converter diretamente
+                            type07_pivot[col] = pd.to_numeric(type07_pivot[col], errors='coerce')
+                        else:
+                            # Já numérico ou outro tipo: converter para garantir
+                            type07_pivot[col] = pd.to_numeric(type07_pivot[col], errors='coerce')
+                    except Exception as e:
+                        # Em caso de erro, tentar conversão via string
+                        try:
+                            type07_pivot[col] = pd.to_numeric(type07_pivot[col].astype(str), errors='coerce')
+                        except:
+                            pass  # Se falhar, deixar como está
+                
+                # GARANTIR: Preencher NaN APENAS em colunas que são realmente numéricas
+                # Verificar novamente após conversão para garantir que não há Categorical
+                numeric_cols_type07 = []
+                for col in type07_pivot.columns:
+                    if col not in ['Type 05', 'Type 06', 'Type 07']:
+                        if pd.api.types.is_numeric_dtype(type07_pivot[col]) and not pd.api.types.is_categorical_dtype(type07_pivot[col]):
+                            numeric_cols_type07.append(col)
+                
+                if len(numeric_cols_type07) > 0:
+                    type07_pivot[numeric_cols_type07] = type07_pivot[numeric_cols_type07].fillna(0)
                 
                 # Calcular total por linha
                 numeric_cols = type07_pivot.select_dtypes(include=['number']).columns
@@ -1087,15 +1113,37 @@ def criar_tabela_pivot(df):
             margins_name='Total',
             observed=True  # Suprimir FutureWarning
         )
-        # Converter apenas colunas de valores (Períodos), não o índice
+        # CORREÇÃO CRÍTICA: Converter TODAS as colunas de Período (criadas pelo pivot_table)
+        # antes de qualquer fillna. O pivot_table pode criar colunas Categorical.
         valor_cols_pivot = [col for col in df_pivot.columns if col != 'Total']
-        if valor_cols_pivot:
-            df_pivot[valor_cols_pivot] = (
-                df_pivot[valor_cols_pivot]
-                .apply(pd.to_numeric, errors='coerce')
-            )
-        # Preencher NaN apenas nas colunas numéricas
-        numeric_cols_pivot = df_pivot.select_dtypes(include=['number']).columns
+        
+        # Converter TODAS as colunas de valor, tratando Categorical de forma segura
+        for col in valor_cols_pivot:
+            try:
+                if pd.api.types.is_categorical_dtype(df_pivot[col]):
+                    # Categorical: converter para string primeiro, depois numérico
+                    df_pivot[col] = pd.to_numeric(df_pivot[col].astype(str), errors='coerce')
+                elif pd.api.types.is_object_dtype(df_pivot[col]):
+                    # Object: tentar converter diretamente
+                    df_pivot[col] = pd.to_numeric(df_pivot[col], errors='coerce')
+                else:
+                    # Já numérico ou outro tipo: converter para garantir
+                    df_pivot[col] = pd.to_numeric(df_pivot[col], errors='coerce')
+            except Exception as e:
+                # Em caso de erro, tentar conversão via string
+                try:
+                    df_pivot[col] = pd.to_numeric(df_pivot[col].astype(str), errors='coerce')
+                except:
+                    pass  # Se falhar, deixar como está
+        
+        # GARANTIR: Preencher NaN APENAS em colunas que são realmente numéricas
+        # Verificar novamente após conversão para garantir que não há Categorical
+        numeric_cols_pivot = []
+        for col in df_pivot.columns:
+            if col != 'Total':
+                if pd.api.types.is_numeric_dtype(df_pivot[col]) and not pd.api.types.is_categorical_dtype(df_pivot[col]):
+                    numeric_cols_pivot.append(col)
+        
         if len(numeric_cols_pivot) > 0:
             df_pivot[numeric_cols_pivot] = df_pivot[numeric_cols_pivot].fillna(0)
         
@@ -1249,12 +1297,41 @@ def criar_tabela_types_periodo(df):
             aggfunc='sum',
             observed=True  # Suprimir FutureWarning
         ).reset_index()
+        
+        # CORREÇÃO CRÍTICA: Converter TODAS as colunas de Período (criadas pelo pivot_table)
+        # antes de qualquer fillna. O pivot_table pode criar colunas Categorical.
         valor_cols_types = [col for col in tabela_pivot_raw.columns if col not in ['Type 05', 'Type 06', 'Type 07']]
-        tabela_pivot_raw[valor_cols_types] = (
-            tabela_pivot_raw[valor_cols_types]
-            .apply(pd.to_numeric, errors='coerce')
-            .fillna(0)
-        )
+        
+        # Converter TODAS as colunas de valor, tratando Categorical de forma segura
+        for col in valor_cols_types:
+            try:
+                if pd.api.types.is_categorical_dtype(tabela_pivot_raw[col]):
+                    # Categorical: converter para string primeiro, depois numérico
+                    tabela_pivot_raw[col] = pd.to_numeric(tabela_pivot_raw[col].astype(str), errors='coerce')
+                elif pd.api.types.is_object_dtype(tabela_pivot_raw[col]):
+                    # Object: tentar converter diretamente
+                    tabela_pivot_raw[col] = pd.to_numeric(tabela_pivot_raw[col], errors='coerce')
+                else:
+                    # Já numérico ou outro tipo: converter para garantir
+                    tabela_pivot_raw[col] = pd.to_numeric(tabela_pivot_raw[col], errors='coerce')
+            except Exception as e:
+                # Em caso de erro, tentar conversão via string
+                try:
+                    tabela_pivot_raw[col] = pd.to_numeric(tabela_pivot_raw[col].astype(str), errors='coerce')
+                except:
+                    pass  # Se falhar, deixar como está
+        
+        # GARANTIR: Preencher NaN APENAS em colunas que são realmente numéricas
+        # Verificar novamente após conversão para garantir que não há Categorical
+        numeric_cols_types = []
+        for col in tabela_pivot_raw.columns:
+            if col not in ['Type 05', 'Type 06', 'Type 07']:
+                if pd.api.types.is_numeric_dtype(tabela_pivot_raw[col]) and not pd.api.types.is_categorical_dtype(tabela_pivot_raw[col]):
+                    numeric_cols_types.append(col)
+        
+        if len(numeric_cols_types) > 0:
+            tabela_pivot_raw[numeric_cols_types] = tabela_pivot_raw[numeric_cols_types].fillna(0)
+        
         return tabela_pivot_raw
     except Exception as e:
         return None
