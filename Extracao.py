@@ -43,22 +43,95 @@ prompt = Dash
 print(f"Python ativo: {sys.executable}")
 print(f"Diretorio: {os.getcwd()}")
 
+# ================== FUNÇÃO PORTÁVEL PARA CAMINHOS ==================
+def get_base_path():
+    """Retorna o caminho base correto para LEITURA de dados (PORTÁVEL)
+    
+    Estratégia de busca para portabilidade:
+    1. No executável: primeiro tenta _internal (onde dados são copiados)
+    2. Se não encontrar, tenta diretório do executável (para quando pasta é movida)
+    3. Em desenvolvimento: usa diretório do script
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # Rodando no executável PyInstaller
+        # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+        
+        # 1. Primeiro tentar _internal (onde dados são copiados no build)
+        try:
+            meipass_path = os.path.abspath(sys._MEIPASS)
+            if os.path.exists(meipass_path):
+                # Verificar se existe pasta Extracoes em _internal
+                extracoes_path = os.path.join(meipass_path, "Extracoes")
+                if os.path.exists(extracoes_path):
+                    return meipass_path
+        except Exception:
+            pass
+        
+        # 2. Fallback: tentar diretório do executável (para quando pasta é movida)
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                # Verificar se existe pasta Extracoes ou _internal/Extracoes no diretório do executável
+                extracoes_path_exe = os.path.join(exe_dir, "Extracoes")
+                extracoes_path_internal = os.path.join(exe_dir, "_internal", "Extracoes")
+                if os.path.exists(extracoes_path_exe):
+                    return exe_dir
+                elif os.path.exists(extracoes_path_internal):
+                    return os.path.join(exe_dir, "_internal")
+        except Exception:
+            pass
+        
+        # 3. Último fallback: usar _MEIPASS mesmo que não exista (pode ser temporário)
+        try:
+            return os.path.abspath(sys._MEIPASS)
+        except Exception:
+            return sys._MEIPASS
+    else:
+        # Rodando em desenvolvimento
+        return os.path.dirname(os.path.abspath(__file__))
+
+def get_output_path():
+    """Retorna o caminho correto para ESCRITA de dados (PORTÁVEL)
+    
+    No executável: salvar no diretório do executável (fora do _internal)
+    Em desenvolvimento: mesmo diretório do script
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # No executável: salvar no diretório do executável (fora do _internal)
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            
+            # Verificar se o diretório existe e é válido
+            if os.path.exists(exe_dir) and os.path.isdir(exe_dir):
+                return exe_dir
+            else:
+                # Se não existe, tentar criar ou usar diretório atual
+                try:
+                    os.makedirs(exe_dir, exist_ok=True)
+                    return exe_dir
+                except Exception:
+                    # Fallback: usar diretório atual de trabalho
+                    return os.path.abspath(os.getcwd())
+        except Exception as e:
+            # Fallback em caso de erro: usar diretório atual
+            return os.path.abspath(os.getcwd())
+    else:
+        # Em desenvolvimento: mesmo diretório
+        return os.path.dirname(os.path.abspath(__file__))
+
 # Verificação de caminhos para executável (não invasiva)
 if hasattr(sys, '_MEIPASS'):
     print(f"Executando no PyInstaller - pasta _internal: {sys._MEIPASS}")
     print(f"Pasta do executável: {os.path.dirname(sys.executable)}")
 
-# ================== CAMINHOS PADRONIZADOS (relativos à pasta principal) ==================
+# ================== CAMINHOS PADRONIZADOS (PORTÁVEIS) ==================
 # Pasta raiz do projeto (para ENTRADA - dentro do _internal)
-ROOT_DIR = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = get_base_path()
 
-# Pasta raiz para SAÍDA (dentro do _internal para manter consistência)
-if hasattr(sys, '_MEIPASS'):
-    # No executável: salvar dentro do _internal para manter consistência
-    OUTPUT_DIR = sys._MEIPASS
-else:
-    # Em desenvolvimento: mesmo diretório
-    OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Pasta raiz para SAÍDA (no diretório do executável para portabilidade)
+OUTPUT_DIR = get_output_path()
 
 # Pastas de entrada (dentro do _internal)
 DIR_EXTRACOES = os.path.join(ROOT_DIR, "Extracoes")
@@ -76,15 +149,9 @@ DIR_ARQUIVOS_OUT = os.path.join(OUTPUT_DIR, "arquivos")
 
 import pandas as pd
 
-# Obter diretório base (onde está o executável)
-if hasattr(sys, '_MEIPASS'):
-    # Executando dentro do PyInstaller
-    base_dir = sys._MEIPASS
-    print(f"Executando dentro do PyInstaller: {base_dir}")
-else:
-    # Executando normalmente - usar diretório do script atual
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    print(f"Executando normalmente: {base_dir}")
+# Obter diretório base (onde está o executável) - PORTÁVEL
+base_dir = get_base_path()
+print(f"Diretório base (portável): {base_dir}")
 
 # Usar pasta local do projeto: Extracoes\KE5Z
 pasta = DIR_KE5Z_IN
@@ -768,6 +835,8 @@ df_total = pd.merge(
 )
 
 # Ler o arquivo Excel Dados SAPIENS.xlsx e a aba CC
+# CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivo
+arquivo_sapiens = os.path.join(get_base_path(), "Dados SAPIENS.xlsx")
 df_CC = pd.read_excel(arquivo_sapiens, sheet_name='CC')
 
 # mudar o nome da coluna CC SAPiens da df_sapiens para Centro cst
@@ -861,7 +930,8 @@ df_total.rename(columns={'Nome do fornecedor': 'Fornecedor'}, inplace=True)
 # Atualizar o nome do fornecedor com as provisoes
 # Precimos ler o arquivo Dados SAPIENS.xlsx na pasta do projeto na guia Hist_prov 
 # desconsiderar a primeira linha do arquivo
-arquivo_hist_prov = os.path.join(base_dir, "Dados SAPIENS.xlsx")
+# CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivo
+arquivo_hist_prov = os.path.join(get_base_path(), "Dados SAPIENS.xlsx")
 df_hist_prov = pd.read_excel(arquivo_hist_prov, sheet_name='Hist_prov', skiprows=1)
 # excluir todas as colunas menos as colunas 'Nome do fornecedor', '20carac'
 df_hist_prov = df_hist_prov[['Nome do fornecedor', '20carac']]

@@ -12,6 +12,54 @@ import sys
 # Adicionar diretório pai ao path para importar auth_simple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# ================== FUNÇÃO PORTÁVEL PARA CAMINHOS ==================
+def get_base_path():
+    """Retorna o caminho base correto para LEITURA de dados (PORTÁVEL)
+    
+    Estratégia de busca para portabilidade:
+    1. No executável: primeiro tenta _internal (onde dados são copiados)
+    2. Se não encontrar, tenta diretório do executável (para quando pasta é movida)
+    3. Em desenvolvimento: usa diretório do script
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # Rodando no executável PyInstaller
+        # CORREÇÃO CRÍTICA: Tentar múltiplos locais para portabilidade
+        
+        # 1. Primeiro tentar _internal (onde dados são copiados no build)
+        try:
+            meipass_path = os.path.abspath(sys._MEIPASS)
+            if os.path.exists(meipass_path):
+                # Verificar se existe pasta KE5Z em _internal
+                ke5z_path = os.path.join(meipass_path, "KE5Z")
+                if os.path.exists(ke5z_path):
+                    return meipass_path
+        except Exception:
+            pass
+        
+        # 2. Fallback: tentar diretório do executável (para quando pasta é movida)
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                # Verificar se existe pasta KE5Z ou _internal/KE5Z no diretório do executável
+                ke5z_path_exe = os.path.join(exe_dir, "KE5Z")
+                ke5z_path_internal = os.path.join(exe_dir, "_internal", "KE5Z")
+                if os.path.exists(ke5z_path_exe):
+                    return exe_dir
+                elif os.path.exists(ke5z_path_internal):
+                    return os.path.join(exe_dir, "_internal")
+        except Exception:
+            pass
+        
+        # 3. Último fallback: usar _MEIPASS mesmo que não exista (pode ser temporário)
+        try:
+            return os.path.abspath(sys._MEIPASS)
+        except Exception:
+            return sys._MEIPASS
+    else:
+        # Rodando em desenvolvimento
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Configuração da página
 st.set_page_config(
     page_title="IUD Assistant - Interactive User Dashboard",
@@ -69,9 +117,11 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🗂️ Seleção de Dados")
 
 # Verificar quais arquivos estão disponíveis
+# CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivos
+base_path = get_base_path()
 arquivos_status = {}
 for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
-    caminho = os.path.join("KE5Z", nome)
+    caminho = os.path.join(base_path, "KE5Z", nome)
     arquivos_status[tipo] = os.path.exists(caminho)
 
 # Opções disponíveis baseadas nos arquivos existentes
@@ -139,7 +189,9 @@ def load_data(arquivo_tipo="completo"):
     """Carrega os dados do arquivo parquet com tratamento de erro - WATERFALL OTIMIZADO"""
     
     # PRIORIDADE 1: Tentar arquivo waterfall otimizado (72% menor!)
-    arquivo_waterfall = os.path.join("_internal", "KE5Z", "KE5Z_waterfall.parquet")
+    # CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivos
+    base_path = get_base_path()
+    arquivo_waterfall = os.path.join(base_path, "KE5Z", "KE5Z_waterfall.parquet")
     if os.path.exists(arquivo_waterfall):
         try:
             df = pd.read_parquet(arquivo_waterfall)
@@ -186,7 +238,9 @@ def load_data(arquivo_tipo="completo"):
     }
     
     nome_arquivo = arquivos_disponiveis.get(arquivo_tipo, "KE5Z.parquet")
-    arquivo_parquet = os.path.join("KE5Z", nome_arquivo)
+    # CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivos
+    base_path = get_base_path()
+    arquivo_parquet = os.path.join(base_path, "KE5Z", nome_arquivo)
     
     try:
         if not os.path.exists(arquivo_parquet):
@@ -194,7 +248,7 @@ def load_data(arquivo_tipo="completo"):
             if arquivo_tipo != "completo":
                 st.warning(f"⚠️ Arquivo {nome_arquivo} não encontrado, carregando dados completos...")
                 # CORREÇÃO: Evitar loop infinito - carregar diretamente o arquivo completo
-                arquivo_completo = os.path.join("KE5Z", "KE5Z.parquet")
+                arquivo_completo = os.path.join(base_path, "KE5Z", "KE5Z.parquet")
                 if os.path.exists(arquivo_completo):
                     df = pd.read_parquet(arquivo_completo)
                     # Aplicar filtro baseado no tipo solicitado
