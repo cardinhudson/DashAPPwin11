@@ -17,7 +17,27 @@ def get_data_dir():
     """Retorna o diretório onde os arquivos de dados devem ser salvos"""
     if hasattr(sys, '_MEIPASS'):
         # No executável: salvar no diretório do executável (fora do _internal)
-        return os.path.dirname(sys.executable)
+        # CORREÇÃO CRÍTICA: Usar os.path.abspath para garantir caminho absoluto correto
+        # mesmo quando o executável é movido para outro local
+        try:
+            # Obter caminho absoluto do executável
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            
+            # Verificar se o diretório existe e é válido
+            if os.path.exists(exe_dir) and os.path.isdir(exe_dir):
+                return exe_dir
+            else:
+                # Se não existe, tentar criar ou usar diretório atual
+                try:
+                    os.makedirs(exe_dir, exist_ok=True)
+                    return exe_dir
+                except Exception:
+                    # Fallback: usar diretório atual de trabalho
+                    return os.path.abspath(os.getcwd())
+        except Exception as e:
+            # Fallback em caso de erro: usar diretório atual
+            return os.path.abspath(os.getcwd())
     else:
         # Em desenvolvimento: diretório atual
         return os.path.dirname(os.path.abspath(__file__))

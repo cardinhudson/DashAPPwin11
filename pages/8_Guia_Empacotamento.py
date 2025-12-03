@@ -323,7 +323,7 @@ st.markdown("---")
 # Seção 4: Configuração de Caminhos
 st.markdown("## 4. CONFIGURAÇÃO DE CAMINHOS")
 st.markdown("### 4.1 Padrão de Caminhos (CRÍTICO)")
-st.markdown("#### **Função para LEITURA de Dados**")
+st.markdown("#### **Função para LEITURA de Dados (CORRIGIDA PARA PORTABILIDADE)**")
 st.code('''
 import sys
 import os
@@ -332,22 +332,72 @@ def get_base_path():
     """Retorna o caminho base correto para LEITURA de dados"""
     if hasattr(sys, '_MEIPASS'):
         # Rodando no executável PyInstaller - apontar para _internal
-        return sys._MEIPASS
+        # CORREÇÃO: Garantir que _MEIPASS seja sempre um caminho absoluto válido
+        meipass_path = os.path.abspath(sys._MEIPASS)
+        if os.path.exists(meipass_path):
+            return meipass_path
+        else:
+            # Fallback: retornar mesmo assim (pode ser temporário durante extração)
+            return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.abspath(__file__))
 ''', language="python")
 
-st.markdown("#### **Função para ESCRITA de Dados**")
+st.markdown("#### **Função para ESCRITA de Dados (CORRIGIDA PARA PORTABILIDADE)**")
 st.code('''
 def get_output_path():
     """Retorna o caminho correto para ESCRITA de dados"""
     if hasattr(sys, '_MEIPASS'):
         # No executável: salvar no diretório do executável (fora do _internal)
-        return os.path.dirname(sys.executable)
+        # CORREÇÃO CRÍTICA: Usar os.path.abspath para garantir caminho absoluto
+        # mesmo quando o executável é movido para outro local
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            
+            # Verificar se o diretório existe e é válido
+            if os.path.exists(exe_dir) and os.path.isdir(exe_dir):
+                return exe_dir
+            else:
+                # Se não existe, tentar criar ou usar diretório atual
+                try:
+                    os.makedirs(exe_dir, exist_ok=True)
+                    return exe_dir
+                except Exception:
+                    # Fallback: usar diretório atual de trabalho
+                    return os.path.abspath(os.getcwd())
+        except Exception as e:
+            # Fallback em caso de erro: usar diretório atual
+            return os.path.abspath(os.getcwd())
     else:
         # Em desenvolvimento: mesmo diretório
         return os.path.dirname(os.path.abspath(__file__))
+''', language="python")
+
+st.markdown("#### **Função CRÍTICA: Garantir Diretório de Trabalho Correto**")
+st.code('''
+def ensure_working_directory():
+    """Garante que o diretório de trabalho seja o diretório do executável"""
+    if hasattr(sys, '_MEIPASS'):
+        # No executável: mudar para o diretório do executável (não do _internal)
+        # CORREÇÃO: Usar os.path.abspath() para garantir caminho absoluto correto
+        # mesmo quando o executável é movido para outro local
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                os.chdir(exe_dir)
+        except Exception:
+            # Fallback: usar diretório atual se houver problema
+            pass
+        # Limpar variáveis de ambiente que podem causar problemas
+        for var in ['VIRTUAL_ENV', 'PYTHONHOME', 'CONDA_DEFAULT_ENV']:
+            if var in os.environ:
+                del os.environ[var]
+
+# Executar imediatamente ao importar (no início do app.py)
+ensure_working_directory()
 ''', language="python")
 
 st.markdown("### 4.2 Aplicação em Todas as Páginas")
@@ -815,6 +865,72 @@ copy "Fornecedores.xlsx" "dist\\Dashboard_KE5Z_OFICIAL\\_internal\\"
 # Copiar arquivos editáveis para fora do _internal
 copy "usuarios.json" "dist\\Dashboard_KE5Z_OFICIAL\\"
 copy "usuarios_padrao.json" "dist\\Dashboard_KE5Z_OFICIAL\\"
+''', language="bash")
+
+st.markdown("---")
+
+# Seção 8.5: Problema de Portabilidade (NOVO)
+with st.expander("### 8.5 Problema: Executável não funciona quando transportado para outro local"):
+    st.markdown("**Sintomas**: Executável funciona no local de criação, mas não funciona quando a pasta é movida")
+    st.markdown("**Causa**: Caminhos relativos ou `sys.executable` não resolvido corretamente")
+    st.markdown("**Solução CRÍTICA**:")
+    st.code('''
+# 1. Garantir que ensure_working_directory() está no início do app.py
+def ensure_working_directory():
+    """Garante que o diretório de trabalho seja o diretório do executável"""
+    if hasattr(sys, '_MEIPASS'):
+        try:
+            exe_path = os.path.abspath(sys.executable)  # CRÍTICO: usar abspath
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                os.chdir(exe_dir)
+        except Exception:
+            pass
+
+# 2. Usar os.path.abspath() em TODOS os caminhos críticos
+def get_base_path():
+    if hasattr(sys, '_MEIPASS'):
+        meipass_path = os.path.abspath(sys._MEIPASS)  # CRÍTICO
+        if os.path.exists(meipass_path):
+            return meipass_path
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+def get_data_dir():
+    if hasattr(sys, '_MEIPASS'):
+        try:
+            exe_path = os.path.abspath(sys.executable)  # CRÍTICO
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir) and os.path.isdir(exe_dir):
+                return exe_dir
+            # Fallbacks seguros...
+        except Exception:
+            return os.path.abspath(os.getcwd())
+    return os.path.dirname(os.path.abspath(__file__))
+''', language="python")
+    
+    st.markdown("**Regras Obrigatórias para Portabilidade:**")
+    st.markdown("""
+    1. ✅ **SEMPRE** usar `os.path.abspath()` em `sys.executable` e `sys._MEIPASS`
+    2. ✅ **SEMPRE** verificar existência de diretórios antes de usar
+    3. ✅ **SEMPRE** ter fallbacks seguros em caso de erro
+    4. ✅ **SEMPRE** executar `ensure_working_directory()` no início do app.py
+    5. ✅ **NUNCA** usar caminhos relativos sem converter para absolutos
+    """)
+    
+    st.markdown("**Teste de Portabilidade:**")
+    st.code('''
+# 1. Criar executável
+criar_executavel_seguindo_guia.bat
+
+# 2. Copiar pasta para outro local
+xcopy "dist\Dashboard_KE5Z_OFICIAL" "C:\Teste\Dashboard_KE5Z_OFICIAL\" /E /I /Y
+
+# 3. Executar no novo local
+cd C:\Teste\Dashboard_KE5Z_OFICIAL
+Dashboard_KE5Z_OFICIAL.exe
+
+# 4. Verificar se funciona corretamente
 ''', language="bash")
 
 st.markdown("---")

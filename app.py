@@ -23,12 +23,42 @@ logging.getLogger('streamlit.runtime.state.session_state_proxy').setLevel(loggin
 # Suprimir FutureWarnings do pandas
 warnings.filterwarnings('ignore', category=FutureWarning)
 
+# CORREÇÃO CRÍTICA: Garantir diretório de trabalho correto para portabilidade
+# Quando o executável é movido para outro local, o diretório de trabalho pode estar errado
+def ensure_working_directory():
+    """Garante que o diretório de trabalho seja o diretório do executável"""
+    if hasattr(sys, '_MEIPASS'):
+        # No executável: mudar para o diretório do executável (não do _internal)
+        # CORREÇÃO: Usar os.path.abspath() para garantir caminho absoluto correto
+        # mesmo quando o executável é movido para outro local
+        try:
+            exe_path = os.path.abspath(sys.executable)
+            exe_dir = os.path.dirname(exe_path)
+            if os.path.exists(exe_dir):
+                os.chdir(exe_dir)
+        except Exception:
+            # Fallback: usar diretório atual se houver problema
+            pass
+        # Limpar variáveis de ambiente que podem causar problemas
+        for var in ['VIRTUAL_ENV', 'PYTHONHOME', 'CONDA_DEFAULT_ENV']:
+            if var in os.environ:
+                del os.environ[var]
+
+# Executar imediatamente ao importar
+ensure_working_directory()
+
 # Detectar se está rodando no executável PyInstaller
 def get_base_path():
     """Retorna o caminho base correto para LEITURA de dados"""
     if hasattr(sys, '_MEIPASS'):
         # Rodando no executável PyInstaller - apontar para _internal
-        return sys._MEIPASS
+        # CORREÇÃO: Garantir que _MEIPASS seja sempre um caminho absoluto válido
+        meipass_path = os.path.abspath(sys._MEIPASS)
+        if os.path.exists(meipass_path):
+            return meipass_path
+        else:
+            # Fallback: retornar mesmo assim (pode ser temporário durante extração)
+            return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.abspath(__file__))
