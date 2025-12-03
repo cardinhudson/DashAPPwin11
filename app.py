@@ -1090,7 +1090,7 @@ if 'Type 07' in df_filtrado.columns:
                 type07_pivot['Total'] = pd.to_numeric(type07_pivot['Total'], errors='coerce')
                 type07_pivot['Total'] = type07_pivot['Total'].apply(lambda x: f"R$ {x:,.2f}" if pd.notna(x) and x != 0 else "")
                 
-                st.dataframe(type07_pivot, width='stretch', hide_index=True)
+                st.dataframe(type07_pivot, use_container_width=True, hide_index=True)
 
 # Tabela dinâmica com cores (modificada para mostrar apenas valores diferentes de zero)
 # OTIMIZAÇÃO: Cache da tabela pivot
@@ -1210,7 +1210,7 @@ styled_pivot = styled_pivot.loc[:, (styled_pivot != "").any(axis=0)]
 styled_pivot = styled_pivot.loc[(styled_pivot != "").any(axis=1), :]
 
 styled_pivot = styled_pivot.style.map(colorir_valores, subset=pd.IndexSlice[:, :])
-st.dataframe(styled_pivot, width='stretch')
+st.dataframe(styled_pivot, use_container_width=True)
 
 # Mostrar estatísticas da filtragem
 linhas_originais = len(df_pivot)
@@ -1251,7 +1251,7 @@ if len(df_display) > display_limit:
     st.info(f"📊 Mostrando {display_limit:,} de {len(df_display):,} registros para otimizar performance")
     df_display = df_display.head(display_limit)
 
-st.dataframe(df_display, width='stretch')
+st.dataframe(df_display, use_container_width=True)
 
 # Botão de download da Tabela Filtrada (logo abaixo da tabela)
 if st.button("📥 Baixar Tabela Filtrada", use_container_width=True, key="download_filtered"):
@@ -1371,7 +1371,7 @@ if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', '
         tabela_pivot['Total'] = pd.to_numeric(tabela_pivot['Total'], errors='coerce')
         tabela_pivot['Total'] = tabela_pivot['Total'].apply(lambda x: f"R$ {x:,.2f}" if pd.notna(x) and x != 0 else "")
         
-        st.dataframe(tabela_pivot, width='stretch', hide_index=True)
+        st.dataframe(tabela_pivot, use_container_width=True, hide_index=True)
     else:
         st.info("Nenhum período encontrado nos dados filtrados.")
     
