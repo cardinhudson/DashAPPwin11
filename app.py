@@ -1087,12 +1087,17 @@ def criar_tabela_pivot(df):
             margins_name='Total',
             observed=True  # Suprimir FutureWarning
         )
-        valor_cols_pivot = df_pivot.columns
-        df_pivot[valor_cols_pivot] = (
-            df_pivot[valor_cols_pivot]
-            .apply(pd.to_numeric, errors='coerce')
-            .fillna(0)
-        )
+        # Converter apenas colunas de valores (Períodos), não o índice
+        valor_cols_pivot = [col for col in df_pivot.columns if col != 'Total']
+        if valor_cols_pivot:
+            df_pivot[valor_cols_pivot] = (
+                df_pivot[valor_cols_pivot]
+                .apply(pd.to_numeric, errors='coerce')
+            )
+        # Preencher NaN apenas nas colunas numéricas
+        numeric_cols_pivot = df_pivot.select_dtypes(include=['number']).columns
+        if len(numeric_cols_pivot) > 0:
+            df_pivot[numeric_cols_pivot] = df_pivot[numeric_cols_pivot].fillna(0)
         
         # Filtrar para mostrar apenas linhas e colunas com valores diferentes de zero
         df_pivot_filtered = df_pivot.loc[(df_pivot != 0).any(axis=1)]
