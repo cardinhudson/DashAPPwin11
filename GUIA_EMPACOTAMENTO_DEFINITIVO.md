@@ -1,5 +1,5 @@
 # 🚀 GUIA DEFINITIVO DE EMPACOTAMENTO - DASHBOARD KE5Z
-## Versão 4.0 - Guia Completo e Unificado para Qualquer IA
+## Versão 4.2 - Guia Completo e Unificado para Qualquer IA
 
 ---
 
@@ -493,10 +493,29 @@ REM Passo 3: Copiar dados para _internal
 echo 📁 Copiando dados para _internal...
 
 REM Copiar pastas de dados
-xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y >nul
-xcopy "Extracoes" "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\" /E /I /Y >nul
-xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y >nul
-xcopy "pages" "dist\Dashboard_KE5Z_OFICIAL\_internal\pages\" /E /I /Y >nul
+REM CRÍTICO: Pasta KE5Z DEVE estar no _internal (dados processados)
+if exist "KE5Z" (
+    xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y >nul
+) else (
+    REM Criar pasta vazia se não existir (será preenchida pela extração)
+    if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z"
+)
+
+if exist "Extracoes" (
+    xcopy "Extracoes" "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\" /E /I /Y >nul
+)
+
+REM CRÍTICO: Pasta arquivos deve estar no _internal (mesmo que vazia)
+if exist "arquivos" (
+    xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y >nul
+) else (
+    REM Criar pasta vazia se não existir (será preenchida pela extração)
+    if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos"
+)
+
+if exist "pages" (
+    xcopy "pages" "dist\Dashboard_KE5Z_OFICIAL\_internal\pages\" /E /I /Y >nul
+)
 
 REM Copiar arquivos de configuração para _internal
 copy "dados_equipe.json" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
@@ -924,7 +943,9 @@ criar_executavel_funcional.bat
 
 **Sintomas**: Estrutura do _internal está incompleta
 
-**Solução**: Executar comandos manualmente
+**Solução Automática**: O script `criar_executavel_oficial.bat` agora cria automaticamente as pastas `KE5Z/` e `arquivos/` dentro do `_internal` se elas não existirem no diretório fonte. Isso garante que a estrutura esteja sempre completa.
+
+**Solução Manual (se necessário)**: Executar comandos manualmente
 ```bash
 # Navegar para a pasta do projeto
 cd C:\user\U235107\GitHub\DashAPPwin11
@@ -935,6 +956,10 @@ xcopy "Extracoes" "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\" /E /I /Y
 xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y
 xcopy "pages" "dist\Dashboard_KE5Z_OFICIAL\_internal\pages\" /E /I /Y
 
+# Se as pastas não existirem, criar vazias (CRÍTICO)
+if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z"
+if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos"
+
 # Copiar arquivos de configuração
 copy "dados_equipe.json" "dist\Dashboard_KE5Z_OFICIAL\_internal\"
 copy "Dados SAPIENS.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\"
@@ -944,6 +969,8 @@ copy "Fornecedores.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\"
 copy "usuarios.json" "dist\Dashboard_KE5Z_OFICIAL\"
 copy "usuarios_padrao.json" "dist\Dashboard_KE5Z_OFICIAL\"
 ```
+
+**Nota Importante**: As pastas `KE5Z/` e `arquivos/` são **OBRIGATÓRIAS** dentro do `_internal`, mesmo que vazias. Elas serão preenchidas quando a extração for executada.
 
 ### 8.5 Problema: Erro ao processar dados
 
@@ -956,9 +983,50 @@ copy "usuarios_padrao.json" "dist\Dashboard_KE5Z_OFICIAL\"
 # Para LEITURA (dentro do _internal)
 ROOT_DIR = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
 
-# Para ESCRITA (fora do _internal)
-OUTPUT_DIR = os.path.dirname(sys.executable) if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
+# Para ESCRITA (dentro do _internal - dados salvos no mesmo local onde são lidos)
+OUTPUT_DIR = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.abspath(__file__))
 ```
+
+### 8.5.1 Problema: Erro "read_csv() got an unexpected keyword argument 'warn_bad_lines'"
+
+**Sintomas**: Durante a extração, aparece erro: `read_csv() got an unexpected keyword argument 'warn_bad_lines'. Did you mean 'on_bad_lines'?`
+
+**Causa**: O pandas descontinuou o parâmetro `warn_bad_lines` nas versões mais recentes. Este parâmetro foi removido e substituído apenas por `on_bad_lines`.
+
+**Solução**: Remover todas as ocorrências de `warn_bad_lines=True` do arquivo `Extracao.py`:
+
+**ANTES (ERRADO):**
+```python
+df = pd.read_csv(
+    arquivo,
+    sep='\t',
+    encoding='latin1',
+    engine='python',
+    on_bad_lines='skip',
+    warn_bad_lines=True   # ❌ ERRO: Este parâmetro foi descontinuado
+)
+```
+
+**DEPOIS (CORRETO):**
+```python
+df = pd.read_csv(
+    arquivo,
+    sep='\t',
+    encoding='latin1',
+    engine='python',
+    on_bad_lines='skip'  # ✅ CORRETO: Apenas este parâmetro é necessário
+)
+```
+
+**Verificação**: Garantir que não há mais ocorrências de `warn_bad_lines` no código:
+```bash
+# Verificar se há ocorrências restantes
+grep -n "warn_bad_lines" Extracao.py
+
+# Se retornar resultados, remover manualmente todas as linhas com warn_bad_lines=True
+```
+
+**Nota**: O parâmetro `on_bad_lines='skip'` já faz o trabalho de pular linhas mal formatadas e não precisa de `warn_bad_lines` para avisar sobre isso.
 
 ### 8.6 Problema: "No module named 'auth_simple'"
 
@@ -1225,10 +1293,14 @@ dist/Dashboard_KE5Z_OFICIAL/
 
 *Este guia foi criado para garantir que qualquer IA possa reproduzir exatamente o mesmo resultado de empacotamento do Dashboard KE5Z.*
 
-*Versão: 4.1 - Definitivo e Completo com Portabilidade*  
-*Data: 25/10/2025*  
+*Versão: 4.2 - Definitivo e Completo com Portabilidade e Correções de Extração*  
+*Data: 03/12/2025*  
 *Status: ✅ TESTADO E FUNCIONANDO*  
-*Atualização: ✅ Sistema agora funciona quando pasta é movida (portabilidade)*
+*Atualizações:*
+- ✅ Sistema funciona quando pasta é movida (portabilidade)
+- ✅ Correção do erro `warn_bad_lines` no pandas (removido parâmetro descontinuado)
+- ✅ Criação automática das pastas `KE5Z/` e `arquivos/` no build se não existirem
+- ✅ Dados de extração salvos dentro do `_internal` (mesmo local onde são lidos)
 
 ---
 

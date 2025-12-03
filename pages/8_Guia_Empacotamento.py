@@ -31,16 +31,16 @@ exibir_header_usuario()
 st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
     <h1 style="color: white; font-size: 3rem; margin: 0;">📦 Guia Definitivo de Empacotamento</h1>
-    <h3 style="color: #f0f0f0; margin: 0;">Dashboard KE5Z Desktop - Versão 4.1</h3>
+    <h3 style="color: #f0f0f0; margin: 0;">Dashboard KE5Z Desktop - Versão 4.2</h3>
     <p style="color: #e0e0e0; font-size: 1.2rem; margin-top: 1rem;">
-        Guia Completo e Unificado para Qualquer IA - Com Portabilidade
+        Guia Completo e Unificado para Qualquer IA - Com Portabilidade e Correções de Extração
     </p>
 </div>
 """, unsafe_allow_html=True)
 
 # Renderizar o conteúdo do guia em seções
 st.markdown("# 🚀 GUIA DEFINITIVO DE EMPACOTAMENTO - DASHBOARD KE5Z")
-st.markdown("## Versão 4.1 - Guia Completo e Unificado para Qualquer IA - Com Portabilidade")
+st.markdown("## Versão 4.2 - Guia Completo e Unificado para Qualquer IA - Com Portabilidade e Correções de Extração")
 st.markdown("---")
 
 # Índice
@@ -1422,10 +1422,16 @@ st.markdown("""
 st.markdown("---")
 st.markdown("**🎉 FIM DO GUIA DEFINITIVO**")
 st.markdown("*Este guia foi criado para garantir que qualquer IA possa reproduzir exatamente o mesmo resultado de empacotamento do Dashboard KE5Z.*")
-st.markdown("*Versão: 4.1 - Definitivo e Completo com Portabilidade*")
-st.markdown("*Data: 25/10/2025*")
+st.markdown("*Versão: 4.2 - Definitivo e Completo com Portabilidade e Correções de Extração*")
+st.markdown("*Data: 03/12/2025*")
 st.markdown("*Status: ✅ TESTADO E FUNCIONANDO*")
-st.markdown("*Atualização: ✅ Sistema agora funciona quando pasta é movida (portabilidade)*")
+st.markdown("""
+*Atualizações:*
+- ✅ Sistema funciona quando pasta é movida (portabilidade)
+- ✅ Correção do erro `warn_bad_lines` no pandas (removido parâmetro descontinuado)
+- ✅ Criação automática das pastas `KE5Z/` e `arquivos/` no build se não existirem
+- ✅ Dados de extração salvos dentro do `_internal` (mesmo local onde são lidos)
+""")
 
 # Footer
 st.markdown("---")
