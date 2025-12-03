@@ -7,6 +7,7 @@ import altair as alt
 from io import BytesIO
 import base64
 import plotly.graph_objects as go
+import hashlib
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
                          eh_administrador, verificar_status_aprovado,
                          get_usuarios_cloud, adicionar_usuario_simples, criar_hash_senha,
@@ -154,12 +155,26 @@ def load_data_optimized(arquivo_tipo="completo"):
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🗂️ Dados**")
 
-# Verificar quais arquivos estão disponíveis
+# OTIMIZAÇÃO: Cachear verificação de arquivos no session_state (persiste entre navegações)
 base_path = get_base_path()
-arquivos_status = {}
-for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
-    caminho = os.path.join(base_path, "KE5Z", nome)
-    arquivos_status[tipo] = os.path.exists(caminho)
+if 'arquivos_status_cache' not in st.session_state:
+    arquivos_status = {}
+    for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
+        caminho = os.path.join(base_path, "KE5Z", nome)
+        arquivos_status[tipo] = os.path.exists(caminho)
+    st.session_state.arquivos_status_cache = arquivos_status
+    st.session_state.base_path_cache = base_path
+else:
+    # Verificar se o base_path mudou (pode acontecer em diferentes ambientes)
+    if st.session_state.base_path_cache != base_path:
+        arquivos_status = {}
+        for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
+            caminho = os.path.join(base_path, "KE5Z", nome)
+            arquivos_status[tipo] = os.path.exists(caminho)
+        st.session_state.arquivos_status_cache = arquivos_status
+        st.session_state.base_path_cache = base_path
+    else:
+        arquivos_status = st.session_state.arquivos_status_cache
 
 # Opções disponíveis baseadas nos arquivos existentes
 opcoes_dados = []
@@ -200,13 +215,15 @@ if not opcoes_dados and not is_cloud:
         st.error("Execute a extração de dados para gerar os arquivos necessários.")
         st.stop()
 
-# Widget de seleção com prioridade para dados principais
+# Widget de seleção com prioridade para dados completos
 def get_default_index():
-    """Retorna o índice padrão priorizando dados principais"""
+    """Retorna o índice padrão priorizando dados completos"""
     opcoes_values = [op[1] for op in opcoes_dados]
     
-    # Prioridade: main > main_filtered > others > completo
-    if "main" in opcoes_values:
+    # Prioridade: completo > main > main_filtered > others
+    if "completo" in opcoes_values:
+        return opcoes_values.index("completo")
+    elif "main" in opcoes_values:
         return opcoes_values.index("main")
     elif "main_filtered" in opcoes_values:
         return opcoes_values.index("main_filtered")
@@ -215,66 +232,88 @@ def get_default_index():
     else:
         return 0  # Primeiro disponível
 
+# OTIMIZAÇÃO: Usar session_state para manter seleção e evitar reruns
+if 'opcao_dados_selecionada' not in st.session_state:
+    st.session_state.opcao_dados_selecionada = opcoes_dados[get_default_index()][1] if opcoes_dados else "completo"
+
 opcao_selecionada = st.sidebar.selectbox(
     "Escolha o conjunto de dados:",
     options=[op[1] for op in opcoes_dados],
     format_func=lambda x: next(op[0] for op in opcoes_dados if op[1] == x),
-    index=get_default_index()  # Priorizar dados principais
+    index=get_default_index() if st.session_state.opcao_dados_selecionada not in [op[1] for op in opcoes_dados] else [op[1] for op in opcoes_dados].index(st.session_state.opcao_dados_selecionada),
+    key="selectbox_dados"
 )
+st.session_state.opcao_dados_selecionada = opcao_selecionada
 
-# Mostrar informações sobre a seleção (COMPACTO)
-if opcao_selecionada == "main":
-    st.sidebar.info("🎯 **Dados Principais** (sem Others)")
-elif opcao_selecionada == "main_filtered":
-    st.sidebar.info("🎯 **Dados Filtrados** (Cloud)")
-elif opcao_selecionada == "others":
-    st.sidebar.info("🔍 **Apenas Others**")
-else:
-    st.sidebar.info("📊 **Dados Completos**")
+# OTIMIZAÇÃO: Mostrar informações apenas se mudou (evitar reruns)
+if 'opcao_dados_info_anterior' not in st.session_state or st.session_state.opcao_dados_info_anterior != opcao_selecionada:
+    if opcao_selecionada == "main":
+        st.sidebar.info("🎯 **Dados Principais** (sem Others)")
+    elif opcao_selecionada == "main_filtered":
+        st.sidebar.info("🎯 **Dados Filtrados** (Cloud)")
+    elif opcao_selecionada == "others":
+        st.sidebar.info("🔍 **Apenas Others**")
+    else:
+        st.sidebar.info("📊 **Dados Completos**")
+    st.session_state.opcao_dados_info_anterior = opcao_selecionada
 
-# Carregar dados
-try:
-    df_total = load_data_optimized(opcao_selecionada)
-    st.sidebar.success("✅ Dados carregados com sucesso")
-    
-    # Log informativo
-    if not is_cloud:
-        st.sidebar.info(f"📊 {len(df_total)} registros carregados")
+# OTIMIZAÇÃO: Cachear dados no session_state (persiste entre navegações)
+cache_key = f"df_total_{opcao_selecionada}"
+cache_loaded_key = f"df_total_loaded_{opcao_selecionada}"
+
+# Verificar se precisa carregar (mudou opção ou não existe no cache)
+if cache_key not in st.session_state or st.session_state.get('opcao_dados_anterior') != opcao_selecionada:
+    # Carregar dados apenas se mudou a opção ou não está em cache
+    try:
+        with st.spinner("🔄 Carregando dados..."):
+            df_total = load_data_optimized(opcao_selecionada)
+            # Filtrar USI não nulo antes de cachear
+            df_total = df_total[df_total['USI'].notna()].copy()
+            st.session_state[cache_key] = df_total
+            st.session_state.opcao_dados_anterior = opcao_selecionada
+            st.session_state[cache_loaded_key] = True
         
-except FileNotFoundError:
-    st.error("❌ Arquivo de dados não encontrado!")
-    st.error(f"🔍 Procurando por: `KE5Z/KE5Z.parquet`")
-    st.info("💡 **Soluções:**")
-    st.info("1. Verifique se o arquivo `KE5Z.parquet` está na pasta `KE5Z/`")
-    st.info("2. Execute a extração de dados localmente")
-    st.info("3. Faça commit do arquivo no repositório")
-    
-    if is_cloud:
-        st.warning("☁️ **No Streamlit Cloud:** Certifique-se que o arquivo "
-                  "foi enviado para o repositório")
-    
-    st.stop()
-    
-except Exception as e:
-    st.error(f"❌ Erro ao carregar dados: {str(e)}")
-    st.info("🔧 **Possíveis causas:**")
-    st.info("• Arquivo corrompido ou formato inválido")
-    st.info("• Problema de permissões")
-    st.info("• Arquivo muito grande")
-    
-    if is_cloud:
-        st.info("☁️ **No Cloud:** Verifique se o arquivo tem menos de 100MB")
-    
-    st.stop()
+        # Mostrar mensagem apenas na primeira vez ou quando muda
+        st.sidebar.success("✅ Dados carregados com sucesso")
+        if not is_cloud:
+            st.sidebar.info(f"📊 {len(df_total)} registros carregados")
+    except FileNotFoundError:
+        st.error("❌ Arquivo de dados não encontrado!")
+        st.error(f"🔍 Procurando por: `KE5Z/KE5Z.parquet`")
+        st.info("💡 **Soluções:**")
+        st.info("1. Verifique se o arquivo `KE5Z.parquet` está na pasta `KE5Z/`")
+        st.info("2. Execute a extração de dados localmente")
+        st.info("3. Faça commit do arquivo no repositório")
+        
+        if is_cloud:
+            st.warning("☁️ **No Streamlit Cloud:** Certifique-se que o arquivo "
+                      "foi enviado para o repositório")
+        
+        st.stop()
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar dados: {str(e)}")
+        st.info("🔧 **Possíveis causas:**")
+        st.info("• Arquivo corrompido ou formato inválido")
+        st.info("• Problema de permissões")
+        st.info("• Arquivo muito grande")
+        
+        if is_cloud:
+            st.info("☁️ **No Cloud:** Verifique se o arquivo tem menos de 100MB")
+        
+        st.stop()
+else:
+    # Usar dados do cache (já filtrado)
+    df_total = st.session_state[cache_key]
+        
 
-# Filtrar o df_total com a coluna 'USI' que não seja nula (incluindo 'Others')
-df_total = df_total[df_total['USI'].notna()]
+# NOTA: df_total já está filtrado no cache acima (USI não nulo)
 
 # Header com informações do usuário e botão de logout
 col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
-    st.title("📊 Dashboard - Visualização de Dados TC - KE5Z")
-st.subheader("Somente os dados com as contas do Perímetro TC")
+    st.title("📊 Dashboard KE5Z")
+st.subheader("Perímetro TC")
 
 # Exibir header do usuário
 exibir_header_usuario()
@@ -285,46 +324,134 @@ st.markdown("---")
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔍 Filtros**")
 
-# Cache para opções de filtros (otimização de performance)
-@st.cache_data(ttl=1800, max_entries=3)
+# Inicializar session_state para filtros se não existir
+if 'filtro_usina' not in st.session_state:
+    st.session_state.filtro_usina = ["Todos"]
+if 'filtro_periodo' not in st.session_state:
+    st.session_state.filtro_periodo = "Todos"
+if 'filtro_centro_cst' not in st.session_state:
+    st.session_state.filtro_centro_cst = "Todos"
+if 'filtro_conta_contabil' not in st.session_state:
+    st.session_state.filtro_conta_contabil = []
+if 'filtros_principais' not in st.session_state:
+    st.session_state.filtros_principais = {}
+if 'filtros_avancados' not in st.session_state:
+    st.session_state.filtros_avancados = {}
+
+# OTIMIZAÇÃO: Cache de opções de filtros no session_state (persiste entre navegações)
 def get_filter_options(df, column_name):
-    """Obtém opções de filtro com cache para melhor performance"""
-    if column_name in df.columns:
-        return ["Todos"] + sorted(df[column_name].dropna().astype(str).unique().tolist())
-    return ["Todos"]
+    """Obtém opções de filtro com cache no session_state"""
+    # Usar hash do DataFrame para criar chave única
+    import hashlib
+    df_hash = hashlib.md5(str(df.shape).encode() + str(column_name).encode()).hexdigest()
+    cache_key = f"filter_options_{column_name}_{df_hash}"
+    
+    if cache_key not in st.session_state:
+        if column_name in df.columns:
+            try:
+                opcoes = ["Todos"] + sorted(df[column_name].dropna().astype(str).unique().tolist())
+                st.session_state[cache_key] = opcoes
+                return opcoes
+            except Exception:
+                st.session_state[cache_key] = ["Todos"]
+                return ["Todos"]
+        st.session_state[cache_key] = ["Todos"]
+        return ["Todos"]
+    else:
+        return st.session_state[cache_key]
 
-# Filtro 1: USINA (com cache otimizado)
+# Cache para aplicar todos os filtros de uma vez (otimização)
+@st.cache_data(ttl=300, max_entries=50)
+def aplicar_filtros_otimizado(df_base, filtros_dict):
+    """Aplica todos os filtros de uma vez para melhor performance"""
+    df = df_base.copy()
+    
+    # Aplicar filtros sequencialmente
+    for coluna, valores in filtros_dict.items():
+        if coluna in df.columns and valores:
+            if isinstance(valores, list):
+                if "Todos" not in valores and valores:
+                    df = df[df[coluna].astype(str).isin(valores)]
+            elif valores != "Todos":
+                df = df[df[coluna].astype(str) == str(valores)]
+    
+    return df
+
+# OTIMIZAÇÃO: Carregar opções de filtros baseadas no df_total (cache mais eficiente)
 usina_opcoes = get_filter_options(df_total, 'USI')
-default_usina = ["Veículos"] if "Veículos" in usina_opcoes else ["Todos"]
-usina_selecionada = st.sidebar.multiselect("Selecione a USINA:", usina_opcoes, default=default_usina)
+periodo_opcoes_total = get_filter_options(df_total, 'Período')
+centro_cst_opcoes_total = get_filter_options(df_total, 'Centro cst') if 'Centro cst' in df_total.columns else ["Todos"]
+conta_opcoes_total = get_filter_options(df_total, 'Nº conta')[1:] if 'Nº conta' in df_total.columns else []
 
-# Filtrar o DataFrame com base na USI
-if "Todos" in usina_selecionada or not usina_selecionada:
-    df_filtrado = df_total.copy()
-else:
-    df_filtrado = df_total[df_total['USI'].astype(str).isin(usina_selecionada)]
+# Filtro 1: USINA (com cache otimizado e session_state)
+# Manter valores válidos do session_state
+usina_valor_atual = st.session_state.filtro_usina
+# Filtrar apenas valores que ainda existem nas opções
+usina_valor_atual = [v for v in usina_valor_atual if v in usina_opcoes]
+# Se não há valores válidos, usar padrão
+if not usina_valor_atual:
+    usina_valor_atual = ["Todos"]
 
-# Filtro 2: Período (com cache otimizado)
-periodo_opcoes = get_filter_options(df_filtrado, 'Período')
-periodo_selecionado = st.sidebar.selectbox("Selecione o Período:", periodo_opcoes)
-if periodo_selecionado != "Todos":
-    df_filtrado = df_filtrado[df_filtrado['Período'].astype(str) == str(periodo_selecionado)]
+usina_selecionada = st.sidebar.multiselect(
+    "Selecione a USINA:", 
+    usina_opcoes, 
+    default=usina_valor_atual,
+    key="filtro_usina_widget"
+)
+# Atualizar session_state apenas se mudou
+if usina_selecionada != st.session_state.filtro_usina:
+    st.session_state.filtro_usina = usina_selecionada if usina_selecionada else ["Todos"]
 
-# Filtro 3: Centro cst (com cache otimizado)
-if 'Centro cst' in df_filtrado.columns:
-    centro_cst_opcoes = get_filter_options(df_filtrado, 'Centro cst')
-    centro_cst_selecionado = st.sidebar.selectbox("Selecione o Centro cst:", centro_cst_opcoes)
-    if centro_cst_selecionado != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['Centro cst'].astype(str) == str(centro_cst_selecionado)]
+# Filtro 2: Período (usando opções do df_total para melhor performance)
+# Manter valor do session_state se ainda estiver disponível
+periodo_valor_atual = st.session_state.filtro_periodo
+if periodo_valor_atual not in periodo_opcoes_total:
+    periodo_valor_atual = "Todos"
 
-# Filtro 4: Conta contábil (com cache otimizado)
-if 'Nº conta' in df_filtrado.columns:
-    conta_contabil_opcoes = get_filter_options(df_filtrado, 'Nº conta')[1:]  # Remove "Todos" para multiselect
-    conta_contabil_selecionadas = st.sidebar.multiselect("Selecione a Conta contábil:", conta_contabil_opcoes)
-    if conta_contabil_selecionadas:
-        df_filtrado = df_filtrado[df_filtrado['Nº conta'].astype(str).isin(conta_contabil_selecionadas)]
+periodo_selecionado = st.sidebar.selectbox(
+    "Selecione o Período:", 
+    periodo_opcoes_total,
+    index=periodo_opcoes_total.index(periodo_valor_atual) if periodo_valor_atual in periodo_opcoes_total else 0,
+    key="filtro_periodo_widget"
+)
+# Atualizar session_state apenas se mudou
+if periodo_selecionado != st.session_state.filtro_periodo:
+    st.session_state.filtro_periodo = periodo_selecionado
 
-# Filtros principais (com cache otimizado)
+# Filtro 3: Centro cst (usando opções do df_total)
+if 'Centro cst' in df_total.columns:
+    # Manter valor do session_state se ainda estiver disponível
+    centro_cst_valor_atual = st.session_state.filtro_centro_cst
+    if centro_cst_valor_atual not in centro_cst_opcoes_total:
+        centro_cst_valor_atual = "Todos"
+    
+    centro_cst_selecionado = st.sidebar.selectbox(
+        "Selecione o Centro cst:", 
+        centro_cst_opcoes_total,
+        index=centro_cst_opcoes_total.index(centro_cst_valor_atual) if centro_cst_valor_atual in centro_cst_opcoes_total else 0,
+        key="filtro_centro_cst_widget"
+    )
+    # Atualizar session_state apenas se mudou
+    if centro_cst_selecionado != st.session_state.filtro_centro_cst:
+        st.session_state.filtro_centro_cst = centro_cst_selecionado
+
+# Filtro 4: Conta contábil (usando opções do df_total)
+if 'Nº conta' in df_total.columns:
+    # Manter valores válidos do session_state
+    conta_valor_atual = st.session_state.filtro_conta_contabil
+    conta_valor_atual = [v for v in conta_valor_atual if v in conta_opcoes_total]
+    
+    conta_contabil_selecionadas = st.sidebar.multiselect(
+        "Selecione a Conta contábil:", 
+        conta_opcoes_total,
+        default=conta_valor_atual,
+        key="filtro_conta_contabil_widget"
+    )
+    # Atualizar session_state apenas se mudou
+    if conta_contabil_selecionadas != st.session_state.filtro_conta_contabil:
+        st.session_state.filtro_conta_contabil = conta_contabil_selecionadas
+
+# Filtros principais (com cache otimizado e session_state)
 filtros_principais = [
     ("Type 05", "Type 05", "multiselect"),
     ("Type 06", "Type 06", "multiselect"), 
@@ -335,14 +462,28 @@ filtros_principais = [
 ]
 
 for col_name, label, widget_type in filtros_principais:
-    if col_name in df_filtrado.columns:
-        opcoes = get_filter_options(df_filtrado, col_name)
+    if col_name in df_total.columns:
+        # Usar opções do df_total (cache mais eficiente)
+        opcoes = get_filter_options(df_total, col_name)
         if widget_type == "multiselect":
-            selecionadas = st.sidebar.multiselect(f"Selecione o {label}:", opcoes, default=["Todos"])
-            if selecionadas and "Todos" not in selecionadas:
-                df_filtrado = df_filtrado[df_filtrado[col_name].astype(str).isin(selecionadas)]
+            # Obter valor atual do session_state
+            valor_atual = st.session_state.filtros_principais.get(col_name, ["Todos"])
+            # Filtrar apenas valores que ainda existem nas opções
+            valor_atual = [v for v in valor_atual if v in opcoes]
+            if not valor_atual:
+                valor_atual = ["Todos"]
+            
+            selecionadas = st.sidebar.multiselect(
+                f"Selecione o {label}:", 
+                opcoes, 
+                default=valor_atual,
+                key=f"filtro_principal_{col_name}"
+            )
+            # Atualizar session_state apenas se mudou
+            if selecionadas != st.session_state.filtros_principais.get(col_name, ["Todos"]):
+                st.session_state.filtros_principais[col_name] = selecionadas if selecionadas else ["Todos"]
 
-# Filtros avançados (expansível)
+# Filtros avançados (usando opções do df_total)
 with st.sidebar.expander("🔍 Filtros Avançados"):
     filtros_avancados = [
         ("Oficina", "Oficina", "multiselect"),
@@ -352,23 +493,81 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
     ]
     
     for col_name, label, widget_type in filtros_avancados:
-        if col_name in df_filtrado.columns:
-            opcoes = get_filter_options(df_filtrado, col_name)
+        if col_name in df_total.columns:
+            # Usar opções do df_total (cache mais eficiente)
+            opcoes = get_filter_options(df_total, col_name)
             # Limitar opções para melhor performance
             if len(opcoes) > 101:  # 100 + "Todos"
                 opcoes = opcoes[:101]
                 st.caption(f"⚠️ {label}: Limitado a 100 opções para performance")
             
             if widget_type == "multiselect":
-                selecionadas = st.multiselect(f"Selecione o {label}:", opcoes, default=["Todos"])
-                if selecionadas and "Todos" not in selecionadas:
-                    df_filtrado = df_filtrado[df_filtrado[col_name].astype(str).isin(selecionadas)]
+                # Obter valor atual do session_state
+                valor_atual = st.session_state.filtros_avancados.get(col_name, ["Todos"])
+                # Filtrar apenas valores que ainda existem nas opções
+                valor_atual = [v for v in valor_atual if v in opcoes]
+                if not valor_atual:
+                    valor_atual = ["Todos"]
+                
+                selecionadas = st.multiselect(
+                    f"Selecione o {label}:", 
+                    opcoes, 
+                    default=valor_atual,
+                    key=f"filtro_avancado_{col_name}"
+                )
+                # Atualizar session_state apenas se mudou
+                if selecionadas != st.session_state.filtros_avancados.get(col_name, ["Todos"]):
+                    st.session_state.filtros_avancados[col_name] = selecionadas if selecionadas else ["Todos"]
 
-# Resumo (COMPACTO)
+# OTIMIZAÇÃO: Aplicar todos os filtros de uma vez (mais eficiente) com cache no session_state
+# Criar hash dos filtros para cache
+filtros_aplicar = {
+    'USI': st.session_state.filtro_usina,
+    'Período': st.session_state.filtro_periodo,
+    'Centro cst': st.session_state.filtro_centro_cst,
+    'Nº conta': st.session_state.filtro_conta_contabil
+}
+
+# Adicionar filtros principais
+for col_name, _, _ in filtros_principais:
+    if col_name in df_total.columns:
+        valores = st.session_state.filtros_principais.get(col_name, ["Todos"])
+        if valores and "Todos" not in valores:
+            filtros_aplicar[col_name] = valores
+
+# Adicionar filtros avançados
+for col_name, _, _ in filtros_avancados:
+    if col_name in df_total.columns:
+        valores = st.session_state.filtros_avancados.get(col_name, ["Todos"])
+        if valores and "Todos" not in valores:
+            filtros_aplicar[col_name] = valores
+
+# Criar hash dos filtros para usar como chave de cache
+filtros_hash = hashlib.md5(str(sorted(filtros_aplicar.items())).encode()).hexdigest()
+cache_filtros_key = f"df_filtrado_{opcao_selecionada}_{filtros_hash}"
+
+# Usar cache se disponível, senão calcular
+if cache_filtros_key not in st.session_state or st.session_state.get('filtros_hash_anterior') != filtros_hash:
+    df_filtrado = aplicar_filtros_otimizado(df_total, filtros_aplicar)
+    st.session_state[cache_filtros_key] = df_filtrado
+    st.session_state.filtros_hash_anterior = filtros_hash
+else:
+    df_filtrado = st.session_state[cache_filtros_key]
+
+# Resumo (COMPACTO) - com cache
+@st.cache_data(ttl=60, max_entries=100)
+def calcular_resumo(df):
+    """Calcula resumo com cache para melhor performance"""
+    return {
+        'linhas': df.shape[0],
+        'total': df['Valor'].sum() if 'Valor' in df.columns else 0
+    }
+
+resumo = calcular_resumo(df_filtrado)
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Resumo**")
-st.sidebar.write(f"**Linhas:** {df_filtrado.shape[0]:,}")
-st.sidebar.write(f"**Total:** R$ {df_filtrado['Valor'].sum():,.2f}")
+st.sidebar.write(f"**Linhas:** {resumo['linhas']:,}")
+st.sidebar.write(f"**Total:** R$ {resumo['total']:,.2f}")
 
 # Status do Sistema (COMPACTO)
 if not is_cloud:  # Só mostrar em modo local para economizar espaço
@@ -394,17 +593,24 @@ if eh_administrador():
     st.sidebar.markdown("---")
     st.sidebar.markdown("**👑 Admin**")
 
-    usuarios = get_usuarios_cloud()
-    total_usuarios = len(usuarios)
-    usuarios_aprovados = len([u for u in usuarios.values() if u.get('status') == 'aprovado'])
-    usuarios_pendentes = len([u for u in usuarios.values() if u.get('status') == 'pendente'])
-
-    st.sidebar.write(f"**Usuários:** {total_usuarios} ({usuarios_aprovados} ✅, {usuarios_pendentes} ⏳)")
+    # OTIMIZAÇÃO: Cachear dados de usuários
+    @st.cache_data(ttl=300, max_entries=1)
+    def get_usuarios_info():
+        usuarios = get_usuarios_cloud()
+        return {
+            'total': len(usuarios),
+            'aprovados': len([u for u in usuarios.values() if u.get('status') == 'aprovado']),
+            'pendentes': len([u for u in usuarios.values() if u.get('status') == 'pendente']),
+            'detalhes': usuarios
+        }
+    
+    usuarios_info = get_usuarios_info()
+    st.sidebar.write(f"**Usuários:** {usuarios_info['total']} ({usuarios_info['aprovados']} ✅, {usuarios_info['pendentes']} ⏳)")
     
     # Botão para expandir detalhes
-    if st.sidebar.button("📋 Ver Usuários"):
+    if st.sidebar.button("📋 Ver Usuários", key="btn_ver_usuarios"):
         st.sidebar.markdown("**Cadastrados:**")
-        for usuario, dados in usuarios.items():
+        for usuario, dados in usuarios_info['detalhes'].items():
             tipo_icon = "👑" if dados.get('tipo') == 'administrador' else "👥"
             status_icon = "✅" if dados.get('status') == 'aprovado' else "⏳"
             st.sidebar.write(f"{tipo_icon} {status_icon} {usuario}")
@@ -430,7 +636,8 @@ def create_period_chart(df_data):
         st.error(f"Erro ao criar gráfico: {e}")
         return None
 
-# Criar e exibir gráfico
+# OTIMIZAÇÃO: Lazy loading de gráficos - só criar se necessário
+# Criar e exibir gráfico (com cache mais agressivo)
 grafico_barras = create_period_chart(df_filtrado)
 if grafico_barras:
     # Adicionar rótulos com valores nas barras
@@ -448,66 +655,199 @@ if grafico_barras:
     grafico_completo = grafico_barras + rotulos
     st.altair_chart(grafico_completo, use_container_width=True)
 
-# Gráficos adicionais por Type
-st.subheader("📊 Análise por Categorias")
-
-# Gráfico por Type 05
-if 'Type 05' in df_filtrado.columns:
-    @st.cache_data(ttl=900, max_entries=2)
-    def create_type05_chart(df_data):
-        try:
-            type05_data = df_data.groupby('Type 05')['Valor'].sum().reset_index()
-            type05_data = type05_data.sort_values('Valor', ascending=False)
+# OTIMIZAÇÃO: Lazy loading - gráficos só aparecem se expandidos
+with st.expander("📊 Categorias", expanded=True):
+    # Gráfico por Type 05
+    if 'Type 05' in df_filtrado.columns:
+        @st.cache_data(ttl=900, max_entries=2)
+        def create_type05_chart(df_data):
+            try:
+                type05_data = df_data.groupby('Type 05')['Valor'].sum().reset_index()
+                type05_data = type05_data.sort_values('Valor', ascending=False)
+                
+                chart = alt.Chart(type05_data).mark_bar().encode(
+                    x=alt.X('Type 05:N', title='Type 05', sort='-y'),
+                    y=alt.Y('Valor:Q', title='Soma do Valor'),
+                    color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
+                    tooltip=['Type 05:N', 'Valor:Q']
+                ).properties(
+                    title='Soma do Valor por Type 05',
+                    height=400
+                )
+                
+                return chart
+            except Exception as e:
+                st.error(f"Erro no gráfico Type 05: {e}")
+                return None
+        
+        chart_type05 = create_type05_chart(df_filtrado)
+        if chart_type05:
+            # Adicionar rótulos com valores nas barras
+            rotulos_type05 = chart_type05.mark_text(
+                align='center',
+                baseline='middle',
+                dy=-10,  # Ajuste vertical
+                color='black',
+                fontSize=11
+            ).encode(
+                text=alt.Text('Valor:Q', format=',.2f')
+            )
             
-            chart = alt.Chart(type05_data).mark_bar().encode(
-                x=alt.X('Type 05:N', title='Type 05', sort='-y'),
+            # Combinar gráfico com rótulos
+            grafico_type05_completo = chart_type05 + rotulos_type05
+            st.altair_chart(grafico_type05_completo, use_container_width=True)
+
+    # Gráfico por Type 06
+    if 'Type 06' in df_filtrado.columns:
+        @st.cache_data(ttl=900, max_entries=2)
+        def create_type06_chart(df_data):
+            try:
+                type06_data = df_data.groupby('Type 06')['Valor'].sum().reset_index()
+                type06_data = type06_data.sort_values('Valor', ascending=False)
+                
+                chart = alt.Chart(type06_data).mark_bar().encode(
+                    x=alt.X('Type 06:N', title='Type 06', sort='-y'),
+                    y=alt.Y('Valor:Q', title='Soma do Valor'),
+                    color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
+                    tooltip=['Type 06:N', 'Valor:Q']
+                ).properties(
+                    title='Soma do Valor por Type 06',
+                    height=400
+                )
+                
+                return chart
+            except Exception as e:
+                st.error(f"Erro no gráfico Type 06: {e}")
+                return None
+        
+        chart_type06 = create_type06_chart(df_filtrado)
+        if chart_type06:
+            # Adicionar rótulos com valores nas barras
+            rotulos_type06 = chart_type06.mark_text(
+                align='center',
+                baseline='middle',
+                dy=-10,  # Ajuste vertical
+                color='black',
+                fontSize=11
+            ).encode(
+                text=alt.Text('Valor:Q', format=',.2f')
+            )
+            
+            # Combinar gráfico com rótulos
+            grafico_type06_completo = chart_type06 + rotulos_type06
+            st.altair_chart(grafico_type06_completo, use_container_width=True)
+
+# PRIMEIRO: Gráfico por Texto (segunda posição)
+if 'Texto' in df_filtrado.columns and 'Type 07' in df_filtrado.columns:
+    st.subheader("📝 Análise por Texto")
+    
+    # Filtros específicos para o gráfico por Texto (incluindo Type 07 como multiselect)
+    col_filtro1_texto, col_filtro2_texto, col_filtro3_texto, col_filtro4_texto, col_filtro5_texto = st.columns(5)
+    
+    with col_filtro1_texto:
+        # Filtro Type 05 para o gráfico
+        type05_opcoes_grafico_texto = get_filter_options(df_filtrado, 'Type 05')
+        type05_grafico_texto = st.selectbox("Type 05 (Texto):", type05_opcoes_grafico_texto, key="type05_grafico_texto")
+    
+    with col_filtro2_texto:
+        # Filtro Type 06 para o gráfico
+        type06_opcoes_grafico_texto = get_filter_options(df_filtrado, 'Type 06')
+        type06_grafico_texto = st.selectbox("Type 06 (Texto):", type06_opcoes_grafico_texto, key="type06_grafico_texto")
+    
+    with col_filtro3_texto:
+        # Filtro Type 07 para o gráfico (MULTISELECT - agregador)
+        type07_opcoes_grafico_texto = get_filter_options(df_filtrado, 'Type 07')
+        # Remover "Todos" para multiselect e usar valores padrão
+        type07_opcoes_grafico_texto_sem_todos = [op for op in type07_opcoes_grafico_texto if op != "Todos"]
+        type07_grafico_texto = st.multiselect(
+            "Type 07 (Texto):", 
+            type07_opcoes_grafico_texto_sem_todos, 
+            default=[],
+            key="type07_grafico_texto_multiselect"
+        )
+    
+    with col_filtro4_texto:
+        # Filtro Período para o gráfico
+        periodo_opcoes_grafico_texto = get_filter_options(df_filtrado, 'Período')
+        periodo_grafico_texto = st.selectbox("Período (Texto):", periodo_opcoes_grafico_texto, key="periodo_grafico_texto")
+    
+    with col_filtro5_texto:
+        # Filtro de quantidade (Top N)
+        quantidade_opcoes_texto = [10, 15, 20, 30, 50, 100]
+        quantidade_grafico_texto = st.selectbox("Top N (Texto):", quantidade_opcoes_texto, index=0, key="quantidade_grafico_texto")
+    
+    # Aplicar filtros específicos para o gráfico por Texto
+    df_grafico_texto = df_filtrado.copy()
+    
+    if type05_grafico_texto != "Todos":
+        df_grafico_texto = df_grafico_texto[df_grafico_texto['Type 05'].astype(str) == str(type05_grafico_texto)]
+    
+    if type06_grafico_texto != "Todos":
+        df_grafico_texto = df_grafico_texto[df_grafico_texto['Type 06'].astype(str) == str(type06_grafico_texto)]
+    
+    # Filtro Type 07 com múltiplos valores (agregador)
+    if type07_grafico_texto:  # Se houver seleções
+        df_grafico_texto = df_grafico_texto[df_grafico_texto['Type 07'].astype(str).isin(type07_grafico_texto)]
+    
+    if periodo_grafico_texto != "Todos":
+        df_grafico_texto = df_grafico_texto[df_grafico_texto['Período'].astype(str) == str(periodo_grafico_texto)]
+    
+    # Mostrar estatísticas dos filtros aplicados
+    type07_filtro_texto = ", ".join(type07_grafico_texto) if type07_grafico_texto else "Todos"
+    st.caption(f"📊 Dados filtrados: {len(df_grafico_texto):,} registros | Total: R$ {df_grafico_texto['Valor'].sum():,.2f}")
+    
+    # Criar gráfico por Texto com os dados filtrados
+    @st.cache_data(ttl=900, max_entries=2)
+    def create_texto_chart(df_data, quantidade, type05_filtro, type06_filtro, type07_filtro, periodo_filtro):
+        try:
+            texto_data = df_data.groupby('Texto')['Valor'].sum().reset_index()
+            texto_data = texto_data.sort_values('Valor', ascending=False).head(quantidade)
+            
+            # Formatar lista de Type 07 para o título
+            type07_titulo = ", ".join(type07_filtro) if type07_filtro else "Todos"
+            
+            chart = alt.Chart(texto_data).mark_bar().encode(
+                x=alt.X('Texto:N', title='Texto', sort='-y'),
                 y=alt.Y('Valor:Q', title='Soma do Valor'),
                 color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
-                tooltip=['Type 05:N', 'Valor:Q']
+                tooltip=['Texto:N', 'Valor:Q']
             ).properties(
-                title='Soma do Valor por Type 05',
-                height=400
+                title=f'Top {quantidade} Texto - Filtrado por Type 05: {type05_filtro}, Type 06: {type06_filtro}, Type 07: {type07_titulo}, Período: {periodo_filtro}',
+                height=500
             )
             
             return chart
         except Exception as e:
-            st.error(f"Erro no gráfico Type 05: {e}")
+            st.error(f"Erro no gráfico por Texto: {e}")
             return None
     
-    chart_type05 = create_type05_chart(df_filtrado)
-    if chart_type05:
-        st.altair_chart(chart_type05, use_container_width=True)
+    chart_texto = create_texto_chart(
+        df_grafico_texto, 
+        quantidade_grafico_texto,
+        type05_grafico_texto,
+        type06_grafico_texto,
+        type07_grafico_texto,
+        periodo_grafico_texto
+    )
+    if chart_texto:
+        # Adicionar rótulos com valores nas barras
+        rotulos_texto = chart_texto.mark_text(
+            align='center',
+            baseline='middle',
+            dy=-10,  # Ajuste vertical
+            color='black',
+            fontSize=10
+        ).encode(
+            text=alt.Text('Valor:Q', format=',.2f')
+        )
+        
+        # Combinar gráfico com rótulos
+        grafico_texto_completo = chart_texto + rotulos_texto
+        st.altair_chart(grafico_texto_completo, use_container_width=True)
 
-# Gráfico por Type 06
-if 'Type 06' in df_filtrado.columns:
-    @st.cache_data(ttl=900, max_entries=2)
-    def create_type06_chart(df_data):
-        try:
-            type06_data = df_data.groupby('Type 06')['Valor'].sum().reset_index()
-            type06_data = type06_data.sort_values('Valor', ascending=False)
-            
-            chart = alt.Chart(type06_data).mark_bar().encode(
-                x=alt.X('Type 06:N', title='Type 06', sort='-y'),
-                y=alt.Y('Valor:Q', title='Soma do Valor'),
-                color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
-                tooltip=['Type 06:N', 'Valor:Q']
-            ).properties(
-                title='Soma do Valor por Type 06',
-                height=400
-            )
-            
-            return chart
-        except Exception as e:
-            st.error(f"Erro no gráfico Type 06: {e}")
-            return None
-    
-    chart_type06 = create_type06_chart(df_filtrado)
-    if chart_type06:
-        st.altair_chart(chart_type06, use_container_width=True)
-
-# Gráfico Type 07 com filtros específicos
+# SEGUNDO: Gráfico Type 07 com filtros específicos (fora do expander)
 if 'Type 07' in df_filtrado.columns:
-    st.subheader("🏆 Análise Type 07 - Filtros Específicos")
+    st.subheader("🏆 Type 07")
     
     # Filtros específicos para o gráfico Type 07
     col_filtro1, col_filtro2, col_filtro3, col_filtro4 = st.columns(4)
@@ -571,11 +911,24 @@ if 'Type 07' in df_filtrado.columns:
     
     chart_type07 = create_type07_chart(df_grafico, quantidade_grafico)
     if chart_type07:
-        st.altair_chart(chart_type07, use_container_width=True)
+        # Adicionar rótulos com valores nas barras
+        rotulos_type07 = chart_type07.mark_text(
+            align='center',
+            baseline='middle',
+            dy=-10,  # Ajuste vertical
+            color='black',
+            fontSize=10
+        ).encode(
+            text=alt.Text('Valor:Q', format=',.2f')
+        )
+        
+        # Combinar gráfico com rótulos
+        grafico_type07_completo = chart_type07 + rotulos_type07
+        st.altair_chart(grafico_type07_completo, use_container_width=True)
         
         # Mostrar tabela com os dados do gráfico (incluindo Type 05, Type 06 e valores por Período)
         if not df_grafico.empty:
-            st.subheader(f"📋 Dados do Gráfico Type 07 (Top {quantidade_grafico})")
+            st.subheader(f"📋 Top {quantidade_grafico}")
             
             # Criar tabela pivot com Type 05, Type 06, Type 07 e valores por Período
             type07_detailed = df_grafico.groupby(['Type 05', 'Type 06', 'Type 07', 'Período'])['Valor'].sum().reset_index()
@@ -604,15 +957,33 @@ if 'Type 07' in df_filtrado.columns:
             st.dataframe(type07_pivot, use_container_width=True, hide_index=True)
 
 # Tabela dinâmica com cores (modificada para mostrar apenas valores diferentes de zero)
-df_pivot = df_filtrado.pivot_table(index='USI', columns='Período', values='Valor', aggfunc='sum', margins=True, margins_name='Total', fill_value=0)
-st.subheader("Tabela Dinâmica - Soma do Valor por USI e Período (Apenas Valores ≠ 0)")
+# OTIMIZAÇÃO: Cache da tabela pivot
+@st.cache_data(ttl=300, max_entries=50)
+def criar_tabela_pivot(df):
+    """Cria tabela pivot com cache para melhor performance"""
+    try:
+        df_pivot = df.pivot_table(
+            index='USI', 
+            columns='Período', 
+            values='Valor', 
+            aggfunc='sum', 
+            margins=True, 
+            margins_name='Total', 
+            fill_value=0
+        )
+        # Filtrar para mostrar apenas linhas e colunas com valores diferentes de zero
+        df_pivot_filtered = df_pivot.loc[(df_pivot != 0).any(axis=1)]
+        df_pivot_filtered = df_pivot_filtered.loc[:, (df_pivot_filtered != 0).any(axis=0)]
+        return df_pivot, df_pivot_filtered
+    except Exception as e:
+        return None, None
 
-# Filtrar para mostrar apenas linhas e colunas com valores diferentes de zero
-# Remover linhas onde todos os valores (exceto Total) são zero
-df_pivot_filtered = df_pivot.loc[(df_pivot != 0).any(axis=1)]
+df_pivot, df_pivot_filtered = criar_tabela_pivot(df_filtrado)
+st.subheader("USI x Período")
 
-# Remover colunas onde todos os valores (exceto Total) são zero
-df_pivot_filtered = df_pivot_filtered.loc[:, (df_pivot_filtered != 0).any(axis=0)]
+if df_pivot is None or df_pivot_filtered is None:
+    st.error("Erro ao criar tabela dinâmica")
+    st.stop()
 
 # Aplicar formatação com cores (verde para positivo, vermelho para negativo)
 def colorir_valores(val):
@@ -635,7 +1006,7 @@ colunas_filtradas = len(df_pivot_filtered.columns)
 st.caption(f"📊 Filtragem aplicada: {linhas_originais} → {linhas_filtradas} linhas, {colunas_originais} → {colunas_filtradas} colunas")
 
 # Botão de download da Tabela Dinâmica (logo abaixo da tabela)
-if st.button("📥 Baixar Tabela Dinâmica (Excel)", use_container_width=True, key="download_pivot"):
+if st.button("📥 Baixar Tabela Dinâmica", use_container_width=True, key="download_pivot"):
     with st.spinner("Gerando arquivo da tabela dinâmica..."):
         try:
             # Obter pasta Downloads do usuário
@@ -653,7 +1024,7 @@ if st.button("📥 Baixar Tabela Dinâmica (Excel)", use_container_width=True, k
             st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Exibir o DataFrame filtrado (limitado para performance)
-st.subheader("Tabela Filtrada")
+st.subheader("Dados")
 display_limit = 500 if is_cloud else 2000
 if len(df_filtrado) > display_limit:
     st.info(f"📊 Mostrando {display_limit:,} de {len(df_filtrado):,} registros para otimizar performance")
@@ -664,7 +1035,7 @@ else:
 st.dataframe(df_display, use_container_width=True)
 
 # Botão de download da Tabela Filtrada (logo abaixo da tabela)
-if st.button("📥 Baixar Tabela Filtrada (Excel)", use_container_width=True, key="download_filtered"):
+if st.button("📥 Baixar Tabela Filtrada", use_container_width=True, key="download_filtered"):
     with st.spinner("Gerando arquivo da tabela filtrada..."):
         try:
             # Obter pasta Downloads do usuário
@@ -682,21 +1053,33 @@ if st.button("📥 Baixar Tabela Filtrada (Excel)", use_container_width=True, ke
             st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Tabela de soma por Types separada por Período (apenas valores ≠ 0)
+# OTIMIZAÇÃO: Cache da tabela de soma por types
+@st.cache_data(ttl=300, max_entries=50)
+def criar_tabela_types_periodo(df):
+    """Cria tabela de soma por types com cache para melhor performance"""
+    try:
+        soma_por_type_periodo = df.groupby(['Type 05', 'Type 06', 'Type 07', 'Período'])['Valor'].sum().reset_index()
+        tabela_pivot_raw = soma_por_type_periodo.pivot_table(
+            index=['Type 05', 'Type 06', 'Type 07'], 
+            columns='Período', 
+            values='Valor', 
+            aggfunc='sum', 
+            fill_value=0
+        ).reset_index()
+        return tabela_pivot_raw
+    except Exception as e:
+        return None
+
 if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', 'Período']):
     st.markdown("---")
-    st.subheader("📊 Soma dos Valores por Type 05, Type 06 e Type 07 (Separado por Período)")
+    st.subheader("📊 Types")
     
-    # Criar tabela pivot com Type 05, Type 06, Type 07 e valores por Período
-    soma_por_type_periodo = df_filtrado.groupby(['Type 05', 'Type 06', 'Type 07', 'Período'])['Valor'].sum().reset_index()
+    # Criar tabela pivot com cache
+    tabela_pivot_raw = criar_tabela_types_periodo(df_filtrado)
     
-    # Pivotar para ter Períodos como colunas
-    tabela_pivot_raw = soma_por_type_periodo.pivot_table(
-        index=['Type 05', 'Type 06', 'Type 07'], 
-        columns='Período', 
-        values='Valor', 
-        aggfunc='sum', 
-        fill_value=0
-    ).reset_index()
+    if tabela_pivot_raw is None:
+        st.error("Erro ao criar tabela de soma por types")
+        st.stop()
     # Cópia para exibição formatada
     tabela_pivot = tabela_pivot_raw.copy()
     
@@ -727,7 +1110,7 @@ if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', '
             tabela_pivot_raw.to_excel(writer, index=False, sheet_name='Soma_por_Types')
         output_types.seek(0)
 
-    if st.button("📥 Baixar Soma por Types (Excel)", use_container_width=True, key="download_types"):
+    if st.button("📥 Baixar Soma por Types", use_container_width=True, key="download_types"):
         with st.spinner("Gerando arquivo da soma por types..."):
             try:
                 # Obter pasta Downloads do usuário
