@@ -447,14 +447,29 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         for skiprows_val in skiprows_tentativas:
             try:
                 # Tentar com engine C (mais rápido)
-                df_temp = pd.read_csv(
-                    caminho_arquivo, 
-                    sep='\t', 
-                    skiprows=skiprows_val,
-                    encoding='latin1', 
-                    engine='c',
-                    low_memory=False
-                )
+                # CORREÇÃO: Adicionar tratamento de erros de parsing
+                # Nota: engine='c' pode não suportar on_bad_lines, então vamos tentar primeiro sem
+                try:
+                    df_temp = pd.read_csv(
+                        caminho_arquivo, 
+                        sep='\t', 
+                        skiprows=skiprows_val,
+                        encoding='latin1', 
+                        engine='c',
+                        low_memory=False,
+                        on_bad_lines='skip',  # Pular linhas com erro de parsing
+                        warn_bad_lines=True   # Avisar sobre linhas puladas
+                    )
+                except TypeError:
+                    # Se engine C não suporta on_bad_lines, tentar sem (pode falhar mas vamos tratar)
+                    df_temp = pd.read_csv(
+                        caminho_arquivo, 
+                        sep='\t', 
+                        skiprows=skiprows_val,
+                        encoding='latin1', 
+                        engine='c',
+                        low_memory=False
+                    )
                 
                 # Validar qualidade do cabeçalho
                 if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
@@ -478,6 +493,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         
             except Exception as e:
                 # Se engine C falhou, tentar engine Python para este skiprows
+                # CORREÇÃO: Adicionar tratamento de erros de parsing
                 try:
                     df_temp = pd.read_csv(
                         caminho_arquivo, 
@@ -485,7 +501,9 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         skiprows=skiprows_val,
                         encoding='latin1', 
                         engine='python',
-                        low_memory=False
+                        low_memory=False,
+                        on_bad_lines='skip',  # Pular linhas com erro de parsing
+                        warn_bad_lines=True   # Avisar sobre linhas puladas
                     )
                     
                     if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
@@ -515,13 +533,16 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                 # Última tentativa desesperada: tentar sem skiprows e procurar cabeçalho
                 try:
                     print(f"   ⚠️  Tentando leitura sem skiprows (última tentativa)...")
+                    # CORREÇÃO: Adicionar tratamento de erros de parsing
                     df_temp = pd.read_csv(
                         caminho_arquivo, 
                         sep='\t', 
                         encoding='latin1', 
                         engine='python',
                         low_memory=False,
-                        nrows=100  # Ler apenas primeiras 100 linhas para testar
+                        nrows=100,  # Ler apenas primeiras 100 linhas para testar
+                        on_bad_lines='skip',  # Pular linhas com erro de parsing
+                        warn_bad_lines=True   # Avisar sobre linhas puladas
                     )
                     
                     # Procurar linha que parece ser cabeçalho
@@ -529,13 +550,16 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         linha_teste = df_temp.iloc[i:i+1]
                         if validar_cabecalho(linha_teste, min_colunas=5, min_linhas=0):
                             # Reler arquivo completo com este skiprows
+                            # CORREÇÃO: Adicionar tratamento de erros de parsing
                             df = pd.read_csv(
                                 caminho_arquivo, 
                                 sep='\t', 
                                 skiprows=i,
                                 encoding='latin1', 
                                 engine='python',
-                                low_memory=False
+                                low_memory=False,
+                                on_bad_lines='skip',  # Pular linhas com erro de parsing
+                                warn_bad_lines=True   # Avisar sobre linhas puladas
                             )
                             print(f"   ✅ Arquivo lido com skiprows={i} (descoberto na última tentativa)")
                             break
@@ -634,6 +658,61 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         print(f"   Verifique se o arquivo está no formato correto.")
         print(f"   Continuando com os próximos arquivos...")
         continue
+    except pd.errors.ParserError as e:
+        # CORREÇÃO: Tratamento específico para erros de parsing (Expected X field, saw Y)
+        print(f"❌ ERRO DE PARSING ao processar {arquivo}: {str(e)}")
+        print(f"   Este erro geralmente ocorre quando há linhas mal formatadas no arquivo.")
+        print(f"   Tentando processar com tratamento de erros mais robusto...")
+        
+        # Tentar novamente com engine Python e tratamento de erros
+        try:
+            # Tentar detectar linha do cabeçalho novamente
+            linha_detectada = detectar_linha_cabecalho(caminho_arquivo, max_linhas=30)
+            skiprows_inicial = linha_detectada if linha_detectada is not None else 9
+            
+            # Tentar ler com engine Python e pular linhas problemáticas
+            df = pd.read_csv(
+                caminho_arquivo,
+                sep='\t',
+                skiprows=skiprows_inicial,
+                encoding='latin1',
+                engine='python',
+                low_memory=False,
+                on_bad_lines='skip',  # Pular linhas com erro
+                warn_bad_lines=True
+            )
+            
+            if validar_cabecalho(df, min_colunas=5, min_linhas=1):
+                print(f"   ✅ Arquivo processado com sucesso após tratamento de erros!")
+                # Continuar processamento normal (padronizar colunas, etc.)
+                df = padronizar_colunas(df, arquivo_nome=arquivo)
+                # Processar colunas numéricas
+                if 'Ano' in df.columns:
+                    df = df[df['Ano'].notna() & (df['Ano'] != 0)].copy()
+                if 'Em MCont.' in df.columns:
+                    if df['Em MCont.'].dtype == 'object':
+                        df['Em MCont.'] = df['Em MCont.'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+                    df['Em MCont.'] = pd.to_numeric(df['Em MCont.'], errors='coerce').fillna(0)
+                if 'Qtd.' not in df.columns:
+                    df['Qtd.'] = 0
+                else:
+                    if df['Qtd.'].dtype == 'object':
+                        df['Qtd.'] = df['Qtd.'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+                    df['Qtd.'] = pd.to_numeric(df['Qtd.'], errors='coerce').fillna(0)
+                
+                dataframes.append(df)
+                print(f"{arquivo} processado com sucesso (com tratamento de erros)!")
+                total_em_mcont = df['Em MCont.'].sum() if 'Em MCont.' in df.columns else 0
+                print(f"Total Em MCont. em {arquivo}: {total_em_mcont:,.2f}")
+                continue
+            else:
+                print(f"   ⚠️  Arquivo processado mas estrutura pode estar incorreta.")
+                print(f"   Continuando com os próximos arquivos...")
+                continue
+        except Exception as e2:
+            print(f"   ❌ Não foi possível processar mesmo com tratamento de erros: {str(e2)}")
+            print(f"   Continuando com os próximos arquivos...")
+            continue
     except Exception as e:
         print(f"❌ Erro ao processar {arquivo}: {str(e)}")
         print(f"   Tipo de erro: {type(e).__name__}")
@@ -744,6 +823,7 @@ if pasta_ksbb:
             print(f"Lendo: {arquivo}")
 
             # Ler o arquivo em um DataFrame
+            # CORREÇÃO: Adicionar tratamento de erros de parsing
             df_ksbb = pd.read_csv(
                 caminho_arquivo,
                 sep='\t',
@@ -751,6 +831,8 @@ if pasta_ksbb:
                 engine='python',
                 skiprows=3,
                 skipfooter=1,
+                on_bad_lines='skip',  # Pular linhas com erro de parsing
+                warn_bad_lines=True   # Avisar sobre linhas puladas
             )
 
             # remover espaços em branco dos nomes das colunas
