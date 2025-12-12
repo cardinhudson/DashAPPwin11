@@ -67,3 +67,10 @@ taskkill /F /IM streamlit.exe
 3. Verifique se há múltiplas instâncias do Streamlit rodando
 
 
+
+
+
+
+
+
+

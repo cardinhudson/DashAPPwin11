@@ -93,3 +93,6 @@ print("\nOu use o arquivo batch:")
 print("  ABRIR_DASHBOARD.bat")
 
 
+
+
+

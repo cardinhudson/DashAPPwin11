@@ -1,181 +1,117 @@
 @echo off
 chcp 65001 >nul
 echo ===============================================
-echo    CRIANDO EXECUTÁVEL - Dashboard KE5Z
-echo    Seguindo Guia de Empacotamento
+echo    CRIANDO EXECUTAVEL - Dashboard KE5Z
 echo ===============================================
 echo.
 
 REM Passo 1: Limpar builds anteriores
-echo 🧹 Limpando builds anteriores...
+echo Limpando builds anteriores...
 if exist "build" rmdir /s /q "build"
 if exist "dist" rmdir /s /q "dist"
-echo ✅ Limpeza concluída
+echo Limpeza concluida
 echo.
 
-REM Passo 2: Criar executável com streamlit-desktop-app
-echo 🔨 Criando executável com streamlit-desktop-app...
-echo.
+REM Passo 2: Criar executavel com streamlit-desktop-app
+echo Criando executavel...
 streamlit-desktop-app build app.py --name Dashboard_KE5Z_OFICIAL
 echo.
 
 REM Verificar se o build foi bem-sucedido
 if not exist "dist\Dashboard_KE5Z_OFICIAL\Dashboard_KE5Z_OFICIAL.exe" (
-    echo ❌ ERRO: Executável não foi criado!
-    echo.
-    echo 🔧 Verificando possíveis problemas...
-    echo.
+    echo ERRO: Executavel nao foi criado!
     pause
     exit /b 1
 )
 
-echo ✅ Executável criado com sucesso!
+echo Executavel criado com sucesso!
 echo.
 
 REM Passo 3: Copiar dados para _internal
-echo 📁 Copiando dados para _internal...
-echo.
+echo Copiando dados para _internal...
 
 REM Copiar pastas de dados
-REM CRÍTICO: Pasta KE5Z DEVE estar no _internal (dados processados)
+REM CRITICO: Pasta KE5Z DEVE estar no _internal (dados processados)
 if exist "KE5Z" (
-    echo    Copiando KE5Z...
     xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y >nul
-    echo    ✅ KE5Z copiado para _internal
 ) else (
-    echo    ⚠️  Pasta KE5Z não encontrada - criando vazia no _internal
+    REM Criar pasta vazia se nao existir (sera preenchida pela extracao)
     if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z"
-    echo    ✅ Pasta KE5Z criada no _internal (será preenchida pela extração)
 )
 
 if exist "Extracoes" (
-    echo    Copiando Extracoes...
     xcopy "Extracoes" "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\" /E /I /Y >nul
-    echo    ✅ Extracoes copiado
-) else (
-    echo    ⚠️  Pasta Extracoes não encontrada
 )
 
-REM CRÍTICO: Pasta arquivos deve estar no _internal (mesmo que vazia)
+REM CRITICO: Pasta arquivos deve estar no _internal (mesmo que vazia)
 if exist "arquivos" (
-    echo    Copiando arquivos...
     xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y >nul
-    echo    ✅ arquivos copiado para _internal
 ) else (
-    echo    ⚠️  Pasta arquivos não encontrada - criando vazia no _internal
+    REM Criar pasta vazia se nao existir (sera preenchida pela extracao)
     if not exist "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos" mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos"
-    echo    ✅ Pasta arquivos criada no _internal (será preenchida pela extração)
 )
 
 if exist "pages" (
-    echo    Copiando pages...
     xcopy "pages" "dist\Dashboard_KE5Z_OFICIAL\_internal\pages\" /E /I /Y >nul
-    echo    ✅ pages copiado
-) else (
-    echo    ⚠️  Pasta pages não encontrada
 )
 
-REM Copiar arquivos de configuração para _internal
-if exist "dados_equipe.json" (
-    copy "dados_equipe.json" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
-    echo    ✅ dados_equipe.json copiado
-)
-
-if exist "Dados SAPIENS.xlsx" (
-    copy "Dados SAPIENS.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
-    echo    ✅ Dados SAPIENS.xlsx copiado
-)
-
-if exist "Fornecedores.xlsx" (
-    copy "Fornecedores.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
-    echo    ✅ Fornecedores.xlsx copiado
-)
+REM Copiar arquivos de configura????o para _internal
+copy "dados_equipe.json" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
+copy "Dados SAPIENS.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
+copy "Fornecedores.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
 
 REM Copiar arquivos Python principais para _internal
-if exist "auth_simple.py" (
-    copy "auth_simple.py" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
-    echo    ✅ auth_simple.py copiado
+copy "auth_simple.py" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
+copy "Extracao.py" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
+
+echo Dados copiados para _internal
+echo.
+
+REM Passo 4: Copiar arquivos EDITAVEIS para fora do _internal
+echo Copiando arquivos editaveis...
+copy "usuarios.json" "dist\Dashboard_KE5Z_OFICIAL\" >nul
+copy "usuarios_padrao.json" "dist\Dashboard_KE5Z_OFICIAL\" >nul
+
+echo Arquivos editaveis copiados
+echo.
+
+REM Passo 5: Remover pyvenv.cfg se existir (CRITICO para portabilidade)
+if exist "dist\Dashboard_KE5Z_OFICIAL\pyvenv.cfg" (
+    del /q "dist\Dashboard_KE5Z_OFICIAL\pyvenv.cfg"
 )
 
-if exist "Extracao.py" (
-    copy "Extracao.py" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
-    echo    ✅ Extracao.py copiado
-)
-
-echo.
-echo ✅ Dados copiados para _internal
-echo.
-
-REM Passo 4: Copiar arquivos EDITÁVEIS para fora do _internal
-echo 📝 Copiando arquivos editáveis...
-if exist "usuarios.json" (
-    copy "usuarios.json" "dist\Dashboard_KE5Z_OFICIAL\" >nul
-    echo    ✅ usuarios.json copiado
-) else (
-    echo    ⚠️  usuarios.json não encontrado
-)
-
-if exist "usuarios_padrao.json" (
-    copy "usuarios_padrao.json" "dist\Dashboard_KE5Z_OFICIAL\" >nul
-    echo    ✅ usuarios_padrao.json copiado
-) else (
-    echo    ⚠️  usuarios_padrao.json não encontrado
-)
-
-echo.
-echo ✅ Arquivos editáveis copiados
-echo.
-
-REM Passo 5: Verificação final
-echo 🔍 Verificando estrutura final...
-echo.
-
+REM Passo 6: Verifica????o final
+echo Verificando estrutura final...
 if exist "dist\Dashboard_KE5Z_OFICIAL\Dashboard_KE5Z_OFICIAL.exe" (
-    echo ✅ Executável: OK
-    for %%A in ("dist\Dashboard_KE5Z_OFICIAL\Dashboard_KE5Z_OFICIAL.exe") do echo    Tamanho: %%~zA bytes
+    echo Executavel: OK
 ) else (
-    echo ❌ Executável: FALTANDO
+    echo Executavel: FALTANDO
 )
 
 if exist "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z" (
-    echo ✅ Pasta KE5Z: OK
+    echo Pasta KE5Z: OK
 ) else (
-    echo ❌ Pasta KE5Z: FALTANDO
+    echo Pasta KE5Z: FALTANDO
 )
 
 if exist "dist\Dashboard_KE5Z_OFICIAL\_internal\pages" (
-    echo ✅ Pasta pages: OK
+    echo Pasta pages: OK
 ) else (
-    echo ❌ Pasta pages: FALTANDO
+    echo Pasta pages: FALTANDO
 )
 
 if exist "dist\Dashboard_KE5Z_OFICIAL\usuarios.json" (
-    echo ✅ usuarios.json: OK
+    echo usuarios.json: OK
 ) else (
-    echo ❌ usuarios.json: FALTANDO
-)
-
-if exist "dist\Dashboard_KE5Z_OFICIAL\_internal\auth_simple.py" (
-    echo ✅ auth_simple.py: OK
-) else (
-    echo ❌ auth_simple.py: FALTANDO
-)
-
-if exist "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracao.py" (
-    echo ✅ Extracao.py: OK
-) else (
-    echo ❌ Extracao.py: FALTANDO
+    echo usuarios.json: FALTANDO
 )
 
 echo.
 echo ===============================================
-echo    BUILD CONCLUÍDO!
+echo    BUILD CONCLUIDO!
 echo ===============================================
 echo.
-echo 📁 Localização: dist\Dashboard_KE5Z_OFICIAL\
-echo 🚀 Para testar: Execute o arquivo Dashboard_KE5Z_OFICIAL.exe
-echo.
-echo 💡 Dica: O executável abrirá automaticamente no navegador
+echo Localizacao: dist\Dashboard_KE5Z_OFICIAL\
+echo Para testar: Execute o arquivo .exe
 echo.
 pause
-

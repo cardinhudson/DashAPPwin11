@@ -36,16 +36,29 @@ def ensure_working_directory():
             exe_dir = os.path.dirname(exe_path)
             if os.path.exists(exe_dir):
                 os.chdir(exe_dir)
-        except Exception:
+        except Exception as e:
             # Fallback: usar diretório atual se houver problema
-            pass
+            # Em caso de erro crítico, tentar continuar mesmo assim
+            try:
+                import tempfile
+                temp_dir = tempfile.gettempdir()
+                if os.path.exists(temp_dir):
+                    os.chdir(temp_dir)
+            except Exception:
+                pass
         # Limpar variáveis de ambiente que podem causar problemas
         for var in ['VIRTUAL_ENV', 'PYTHONHOME', 'CONDA_DEFAULT_ENV']:
             if var in os.environ:
                 del os.environ[var]
 
 # Executar imediatamente ao importar
-ensure_working_directory()
+try:
+    ensure_working_directory()
+except Exception as e:
+    # Se houver erro crítico na inicialização, continuar mesmo assim
+    # O Streamlit pode ainda funcionar
+    # Em modo executável, não podemos usar print, então apenas continuar
+    pass
 
 # Detectar se está rodando no executável PyInstaller
 def get_base_path():
@@ -96,12 +109,17 @@ def get_base_path():
         return os.path.dirname(os.path.abspath(__file__))
 
 # Configuração otimizada da página para melhor performance
-st.set_page_config(
-    page_title="Dashboard KE5Z",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# CORREÇÃO: Adicionar tratamento de erro para portabilidade
+try:
+    st.set_page_config(
+        page_title="Dashboard KE5Z",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+except Exception:
+    # Se já foi configurado (pode acontecer em alguns casos), continuar
+    pass
 
 # Configurações para otimizar conexão e performance
 if 'connection_optimized' not in st.session_state:
@@ -113,15 +131,40 @@ if 'connection_optimized' not in st.session_state:
     st.session_state.connection_optimized = True
 
 # Verificar autenticação - OBRIGATÓRIO no início de cada página
-verificar_autenticacao()
+# CORREÇÃO: Adicionar tratamento de erro robusto para portabilidade
+try:
+    verificar_autenticacao()
+except Exception as e:
+    # Se houver erro na autenticação, tentar criar uma sessão básica
+    # e mostrar mensagem de erro amigável
+    if 'usuario_nome' not in st.session_state:
+        st.session_state.usuario_nome = None
+    if 'logado' not in st.session_state:
+        st.session_state.logado = False
+    
+    # Mostrar erro apenas se for crítico
+    error_msg = str(e)
+    if "FileNotFoundError" in error_msg or "PermissionError" in error_msg:
+        st.error("❌ Erro ao acessar arquivos de configuração.")
+        st.info("💡 Verifique se a pasta do executável tem permissões de leitura/escrita.")
+        st.info("💡 Certifique-se de que os arquivos usuarios.json e usuarios_padrao.json existem.")
+    else:
+        # Para outros erros, tentar continuar silenciosamente
+        pass
 
-# Verificar se o usuário está aprovado
-if 'usuario_nome' in st.session_state and not verificar_status_aprovado(st.session_state.usuario_nome):
-    st.warning("⏳ Sua conta ainda está pendente de aprovação. "
-               "Aguarde o administrador aprovar seu acesso.")
-    st.info("📧 Você receberá uma notificação quando sua conta for "
-            "aprovada.")
-    st.stop()
+# Verificar se o usuário está aprovado (apenas se estiver logado)
+try:
+    if 'usuario_nome' in st.session_state and st.session_state.usuario_nome is not None:
+        if not verificar_status_aprovado(st.session_state.usuario_nome):
+            st.warning("⏳ Sua conta ainda está pendente de aprovação. "
+                       "Aguarde o administrador aprovar seu acesso.")
+            st.info("📧 Você receberá uma notificação quando sua conta for "
+                    "aprovada.")
+            st.stop()
+except Exception:
+    # Se houver erro na verificação de status, continuar mesmo assim
+    # (não bloquear o acesso por causa de erro de verificação)
+    pass
 
 # Usar modo selecionado no login (substitui detecção automática)
 is_cloud = is_modo_cloud()
@@ -420,34 +463,94 @@ if cache_key not in st.session_state or st.session_state.get('opcao_dados_anteri
         st.sidebar.success("✅ Dados carregados com sucesso")
         if not is_cloud:
             st.sidebar.info(f"📊 {len(df_total)} registros carregados")
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         st.error("❌ Arquivo de dados não encontrado!")
         st.error(f"🔍 Procurando por: `KE5Z/KE5Z.parquet`")
+        
+        # CORREÇÃO: Mostrar informações de debug para portabilidade
+        if hasattr(sys, '_MEIPASS'):
+            try:
+                exe_path = os.path.abspath(sys.executable)
+                exe_dir = os.path.dirname(exe_path)
+                st.info(f"📁 Diretório do executável: `{exe_dir}`")
+                st.info(f"📁 _MEIPASS: `{os.path.abspath(sys._MEIPASS)}`")
+                
+                # Verificar quais pastas existem
+                locais_verificados = [
+                    os.path.join(exe_dir, "KE5Z"),
+                    os.path.join(exe_dir, "_internal", "KE5Z"),
+                    os.path.join(os.path.abspath(sys._MEIPASS), "KE5Z")
+                ]
+                
+                st.info("🔍 **Locais verificados:**")
+                for local in locais_verificados:
+                    existe = os.path.exists(local)
+                    st.write(f"  - `{local}`: {'✅ Existe' if existe else '❌ Não existe'}")
+            except Exception:
+                pass
+        
         st.info("💡 **Soluções:**")
-        st.info("1. Verifique se o arquivo `KE5Z.parquet` está na pasta `KE5Z/`")
-        st.info("2. Execute a extração de dados localmente")
-        st.info("3. Faça commit do arquivo no repositório")
+        st.info("1. Verifique se o arquivo `KE5Z.parquet` está na pasta `KE5Z/` dentro de `_internal/`")
+        st.info("2. Certifique-se de que TODA a pasta foi copiada (incluindo `_internal/`)")
+        st.info("3. Execute a extração de dados se necessário")
         
         if is_cloud:
             st.warning("☁️ **No Streamlit Cloud:** Certifique-se que o arquivo "
                       "foi enviado para o repositório")
         
-        st.stop()
+        # CORREÇÃO: Não parar completamente, criar DataFrame vazio para permitir navegação
+        try:
+            df_total = pd.DataFrame()
+            st.session_state[cache_key] = df_total
+            st.session_state.opcao_dados_anterior = opcao_selecionada
+        except Exception:
+            pass
         
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
+        
+        # CORREÇÃO: Mostrar informações de debug para portabilidade
+        if hasattr(sys, '_MEIPASS'):
+            try:
+                exe_path = os.path.abspath(sys.executable)
+                exe_dir = os.path.dirname(exe_path)
+                st.info(f"📁 Diretório do executável: `{exe_dir}`")
+                st.info(f"📁 _MEIPASS: `{os.path.abspath(sys._MEIPASS)}`")
+            except Exception:
+                pass
+        
         st.info("🔧 **Possíveis causas:**")
         st.info("• Arquivo corrompido ou formato inválido")
         st.info("• Problema de permissões")
         st.info("• Arquivo muito grande")
+        st.info("• Pasta movida - verifique se TODA a estrutura foi copiada")
         
         if is_cloud:
             st.info("☁️ **No Cloud:** Verifique se o arquivo tem menos de 100MB")
         
-        st.stop()
+        # CORREÇÃO: Não parar completamente, criar DataFrame vazio para permitir navegação
+        st.warning("⚠️ Continuando com dados vazios. Algumas funcionalidades podem não estar disponíveis.")
+        try:
+            df_total = pd.DataFrame()
+            st.session_state[cache_key] = df_total
+            st.session_state.opcao_dados_anterior = opcao_selecionada
+        except Exception:
+            # Se não conseguir criar DataFrame vazio, pelo menos não parar
+            pass
 else:
     # Usar dados do cache (já filtrado)
-    df_total = st.session_state[cache_key]
+    try:
+        df_total = st.session_state[cache_key]
+    except KeyError:
+        # Se não existe no cache, tentar carregar novamente
+        try:
+            df_total = load_data_optimized(opcao_selecionada)
+            df_total = df_total[df_total['USI'].notna()].copy()
+            st.session_state[cache_key] = df_total
+        except Exception:
+            # Se falhar, criar DataFrame vazio para não parar o app
+            df_total = pd.DataFrame()
+            st.session_state[cache_key] = df_total
         
 
 # NOTA: df_total já está filtrado no cache acima (USI não nulo)
@@ -514,11 +617,50 @@ def aplicar_filtros_otimizado(df_base, filtros_dict):
         if coluna in df.columns and valores:
             if isinstance(valores, list):
                 if "Todos" not in valores and valores:
-                    df = df[df[coluna].astype(str).isin(valores)]
+                    # Converter valores para string para comparação
+                    valores_str = [str(v) for v in valores]
+                    df = df[df[coluna].astype(str).isin(valores_str)]
             elif valores != "Todos":
-                df = df[df[coluna].astype(str) == str(valores)]
+                # Para valores únicos, tentar correspondência numérica e textual
+                try:
+                    # Se for numérico, tentar correspondência numérica também
+                    valor_num = float(valores)
+                    valor_int = int(valor_num) if valor_num == int(valor_num) else None
+                    
+                    # Verificar se a coluna é numérica
+                    if df[coluna].dtype in ['int64', 'float64', 'int32', 'float32', 'Int64', 'Float64']:
+                        # Se a coluna é numérica, usar comparação numérica
+                        if valor_int is not None:
+                            df = df[df[coluna] == valor_int]
+                        else:
+                            df = df[df[coluna] == valor_num]
+                    else:
+                        # Se a coluna é texto, usar comparação de string
+                        valor_str = str(valores)
+                        df = df[df[coluna].astype(str) == valor_str]
+                except (ValueError, TypeError):
+                    # Se não for numérico, usar apenas comparação de string
+                    valor_str = str(valores)
+                    df = df[df[coluna].astype(str) == valor_str]
     
     return df
+
+# CORREÇÃO: Verificar se o usuário quer filtrar por "Others" ANTES de carregar opções de filtro
+# Se sim e não temos "Others" no df_total atual, carregar dados completos
+filtro_usina_atual = st.session_state.get('filtro_usina', ["Todos"])
+if filtro_usina_atual and "Todos" not in filtro_usina_atual and "Others" in filtro_usina_atual:
+    # Verificar se "Others" existe no df_total atual
+    usi_disponiveis = df_total['USI'].unique() if 'USI' in df_total.columns else []
+    if "Others" not in usi_disponiveis and arquivos_status.get("completo", False):
+        # Se não tem "Others" no df_total atual e temos arquivo completo, usar dados completos
+        cache_key_completo = f"df_total_completo"
+        if cache_key_completo not in st.session_state:
+            with st.spinner("🔄 Carregando dados completos para filtrar 'Others'..."):
+                df_total_completo = load_data_optimized("completo")
+                df_total_completo = df_total_completo[df_total_completo['USI'].notna()].copy()
+                st.session_state[cache_key_completo] = df_total_completo
+        df_total = st.session_state[cache_key_completo]
+        st.sidebar.info("ℹ️ Usando dados completos para filtrar 'Others'")
 
 # OTIMIZAÇÃO: Carregar opções de filtros baseadas no df_total (cache mais eficiente)
 usina_opcoes = get_filter_options(df_total, 'USI')
@@ -664,12 +806,31 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
 
 # OTIMIZAÇÃO: Aplicar todos os filtros de uma vez (mais eficiente) com cache no session_state
 # Criar hash dos filtros para cache
-filtros_aplicar = {
-    'USI': st.session_state.filtro_usina,
-    'Período': st.session_state.filtro_periodo,
-    'Centro cst': st.session_state.filtro_centro_cst,
-    'Nº conta': st.session_state.filtro_conta_contabil
-}
+# IMPORTANTE: Só adicionar filtros que não sejam "Todos" para evitar filtros automáticos
+# CORREÇÃO: Se o usuário selecionar "Others" no filtro, garantir que temos dados completos
+filtros_aplicar = {}
+
+# Filtro de USI - só adicionar se não for "Todos"
+# NOTA: A verificação de "Others" já foi feita antes de carregar as opções de filtro (linha 545-560)
+# então aqui apenas adicionamos o filtro ao dicionário
+filtro_usina = st.session_state.filtro_usina
+if filtro_usina and "Todos" not in filtro_usina:
+    filtros_aplicar['USI'] = filtro_usina
+
+# Filtro de Período - só adicionar se não for "Todos"
+filtro_periodo = st.session_state.filtro_periodo
+if filtro_periodo != "Todos":
+    filtros_aplicar['Período'] = filtro_periodo
+
+# Filtro de Centro cst - só adicionar se não for "Todos"
+filtro_centro_cst = st.session_state.filtro_centro_cst
+if filtro_centro_cst != "Todos":
+    filtros_aplicar['Centro cst'] = filtro_centro_cst
+
+# Filtro de Nº conta - só adicionar se não estiver vazio
+filtro_conta = st.session_state.filtro_conta_contabil
+if filtro_conta and len(filtro_conta) > 0:
+    filtros_aplicar['Nº conta'] = filtro_conta
 
 # Adicionar filtros principais
 for col_name, _, _ in filtros_principais:
@@ -690,12 +851,18 @@ filtros_hash = hashlib.md5(str(sorted(filtros_aplicar.items())).encode()).hexdig
 cache_filtros_key = f"df_filtrado_{opcao_selecionada}_{filtros_hash}"
 
 # Usar cache se disponível, senão calcular
-if cache_filtros_key not in st.session_state or st.session_state.get('filtros_hash_anterior') != filtros_hash:
-    df_filtrado = aplicar_filtros_otimizado(df_total, filtros_aplicar)
-    st.session_state[cache_filtros_key] = df_filtrado
-    st.session_state.filtros_hash_anterior = filtros_hash
+# IMPORTANTE: Se não há filtros aplicados, usar df_total diretamente (sem processamento)
+if not filtros_aplicar:
+    # Nenhum filtro aplicado - usar df_total diretamente
+    df_filtrado = df_total.copy()
 else:
-    df_filtrado = st.session_state[cache_filtros_key]
+    # Há filtros aplicados - processar através da função
+    if cache_filtros_key not in st.session_state or st.session_state.get('filtros_hash_anterior') != filtros_hash:
+        df_filtrado = aplicar_filtros_otimizado(df_total, filtros_aplicar)
+        st.session_state[cache_filtros_key] = df_filtrado
+        st.session_state.filtros_hash_anterior = filtros_hash
+    else:
+        df_filtrado = st.session_state[cache_filtros_key]
 
 # Resumo (COMPACTO) - com cache
 @st.cache_data(ttl=60, max_entries=100)
@@ -1363,21 +1530,37 @@ st.caption(f"📊 Filtragem aplicada: {linhas_originais} → {linhas_filtradas} 
 
 # Botão de download da Tabela Dinâmica (logo abaixo da tabela)
 if st.button("📥 Baixar Tabela Dinâmica", use_container_width=True, key="download_pivot"):
-    with st.spinner("Gerando arquivo da tabela dinâmica..."):
-        try:
-            # Obter pasta Downloads do usuário
-            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-            file_name = "KE5Z_tabela_dinamica_filtrada.xlsx"
-            file_path = os.path.join(downloads_path, file_name)
-            
-            # Salvar arquivo diretamente na pasta Downloads
-            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-                df_pivot_filtered.to_excel(writer, index=True, sheet_name='Tabela_Dinamica')
-            
-            st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
-            st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
-        except Exception as e:
-            st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+    # Limite de segurança para exportação Excel
+    LIMITE_EXCEL_SEGURANCA = 1000000  # 1 milhão de linhas
+    
+    # Para tabela dinâmica, verificar o número de linhas
+    total_linhas = df_pivot_filtered.shape[0]
+    
+    if total_linhas > LIMITE_EXCEL_SEGURANCA:
+        st.error(f"❌ **ERRO: Arquivo muito grande para exportação**")
+        st.error(f"📊 **Linhas na tabela dinâmica:** {total_linhas:,}")
+        st.error(f"⚠️ **Limite de segurança:** {LIMITE_EXCEL_SEGURANCA:,} linhas")
+        st.warning("🔧 **Soluções:**")
+        st.warning("• Aplique mais filtros para reduzir o número de linhas")
+        st.warning("• Use filtros de Type, USI, Período, etc.")
+        st.info("💡 **Dica:** O Excel suporta até 1.048.576 linhas, mas recomendamos máximo 1.000.000 para melhor performance")
+    else:
+        with st.spinner("Gerando arquivo da tabela dinâmica..."):
+            try:
+                # Obter pasta Downloads do usuário
+                downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                file_name = "KE5Z_tabela_dinamica_filtrada.xlsx"
+                file_path = os.path.join(downloads_path, file_name)
+                
+                # Salvar arquivo diretamente na pasta Downloads
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    df_pivot_filtered.to_excel(writer, index=True, sheet_name='Tabela_Dinamica')
+                
+                st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+                st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+                st.info(f"📊 Tabela dinâmica exportada: {total_linhas:,} linhas x {df_pivot_filtered.shape[1]:,} colunas")
+            except Exception as e:
+                st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Exibir o DataFrame filtrado (limitado para performance)
 st.subheader("Dados")
@@ -1388,29 +1571,357 @@ else:
     df_display = df_filtrado.copy()
 
 display_limit = 500 if is_cloud else 2000
-if len(df_display) > display_limit:
-    st.info(f"📊 Mostrando {display_limit:,} de {len(df_display):,} registros para otimizar performance")
-    df_display = df_display.head(display_limit)
+total_registros_filtrados_dados = len(df_display)  # Total APÓS todos os filtros
+
+# Verificar se há filtros aplicados (comparando com df_total original)
+total_antes_filtros_dados = len(df_total)
+filtros_aplicados_dados = len(df_filtrado) != total_antes_filtros_dados
+
+if filtros_aplicados_dados:
+    # Há filtros aplicados
+    if total_registros_filtrados_dados > display_limit:
+        st.info(f"📊 Mostrando {display_limit:,} de {total_registros_filtrados_dados:,} registros (após filtros) para otimizar performance")
+        df_display = df_display.head(display_limit)
+    elif total_registros_filtrados_dados > 0:
+        st.info(f"📊 Mostrando todos os {total_registros_filtrados_dados:,} registros (após filtros)")
+    else:
+        st.warning("⚠️ Nenhum registro encontrado após aplicar os filtros.")
+else:
+    # NÃO há filtros aplicados - mostrar todos os dados
+    if total_registros_filtrados_dados > display_limit:
+        st.info(f"📊 Mostrando {display_limit:,} de {total_registros_filtrados_dados:,} registros para otimizar performance")
+        df_display = df_display.head(display_limit)
+    elif total_registros_filtrados_dados > 0:
+        st.info(f"📊 Mostrando todos os {total_registros_filtrados_dados:,} registros")
+    else:
+        st.warning("⚠️ Nenhum registro encontrado.")
 
 st.dataframe(df_display, use_container_width=True)
 
 # Botão de download da Tabela Filtrada (logo abaixo da tabela)
 if st.button("📥 Baixar Tabela Filtrada", use_container_width=True, key="download_filtered"):
-    with st.spinner("Gerando arquivo da tabela filtrada..."):
+    # Limite de segurança para exportação Excel
+    LIMITE_EXCEL_SEGURANCA = 1000000  # 1 milhão de linhas
+    
+    if len(df_filtrado) > LIMITE_EXCEL_SEGURANCA:
+        st.error(f"❌ **ERRO: Arquivo muito grande para exportação**")
+        st.error(f"📊 **Registros filtrados:** {len(df_filtrado):,} linhas")
+        st.error(f"⚠️ **Limite de segurança:** {LIMITE_EXCEL_SEGURANCA:,} linhas")
+        st.warning("🔧 **Soluções:**")
+        st.warning("• Aplique mais filtros para reduzir o número de linhas")
+        st.warning("• Use filtros de Type 05, Type 06, Type 07, USI, Período, etc.")
+        st.warning("• Selecione categorias específicas nos filtros avançados")
+        st.info("💡 **Dica:** O Excel suporta até 1.048.576 linhas, mas recomendamos máximo 1.000.000 para melhor performance")
+    else:
+        with st.spinner("Gerando arquivo da tabela filtrada..."):
+            try:
+                # Obter pasta Downloads do usuário
+                downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                file_name = "KE5Z_tabela_filtrada.xlsx"
+                file_path = os.path.join(downloads_path, file_name)
+                
+                # Salvar arquivo diretamente na pasta Downloads
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    df_filtrado.to_excel(writer, index=False, sheet_name='Dados_Filtrados')
+                
+                st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+                st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+                st.info(f"📊 Total de registros exportados: {len(df_filtrado):,}")
+            except Exception as e:
+                st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+
+# ================== NOVA TABELA: Dados de Porto Real ==================
+st.markdown("---")
+st.subheader("🚗 Dados de Porto Real")
+
+# Função para carregar dados de Porto Real (usando a MESMA fonte de dados da tabela "Dados")
+@st.cache_data(ttl=3600, max_entries=2, persist="disk")
+def load_veiculos_data(arquivo_tipo="completo"):
+    """Carrega dados usando a MESMA fonte da tabela "Dados" e aplica transformações do Extracao.py
+    para obter todas as colunas no formato da tabela de veículos
+    
+    Args:
+        arquivo_tipo: "completo", "main", "others" - deve ser o mesmo da tabela "Dados"
+    """
+    try:
+        # IMPORTANTE: Usar a mesma função load_data_optimized para garantir mesma fonte de dados
+        df_completo = load_data_optimized(arquivo_tipo)
+        
+        # APLICAR AS MESMAS TRANSFORMAÇÕES DO Extracao.py (linhas 1488-1507)
+        # 1. Selecionar apenas as colunas necessárias (formato original do parquet)
+        colunas_originais = ['Período', 'Nº conta', 'Centro cst', 'doc.ref', 'Dt.lçto.', 
+                            'Valor', 'Qtd.', 'Type 05', 'Type 06', 'Type 07', 'USI', 
+                            'Oficina', 'Doc.compra', 'Texto', 'Fornecedor', 'Material', 
+                            'Usuário', 'Fornec.', 'Tipo']
+        
+        # Filtrar apenas colunas que existem
+        colunas_existentes = [col for col in colunas_originais if col in df_completo.columns]
+        df_veiculos = df_completo[colunas_existentes].copy()
+        
+        # 2. Renomear colunas para o formato final
+        mapeamento_renomeacao = {
+            'Texto': 'Texto breve',
+            'Qtd.': 'QTD',
+            'Nº conta': 'Nºconta',
+            'Centro cst': 'Centrocst',
+            'doc.ref': 'Nºdoc.ref.',
+            'Type 07': 'Account'
+        }
+        
+        for col_original, col_nova in mapeamento_renomeacao.items():
+            if col_original in df_veiculos.columns:
+                df_veiculos.rename(columns={col_original: col_nova}, inplace=True)
+        
+        # 3. Converter 'Período' (numérico no parquet) para 'Mes' (número) e criar coluna 'Período' (texto)
+        if 'Período' in df_veiculos.columns:
+            # No parquet, 'Período' já é numérico (1-12), então usar diretamente como 'Mes'
+            df_veiculos['Mes'] = df_veiculos['Período'].astype('Int64')  # Converter para inteiro
+            
+            # Criar coluna 'Período' (texto) baseada no número do mês
+            meses_map_texto = {
+                1: 'janeiro', 2: 'fevereiro', 3: 'março', 4: 'abril',
+                5: 'maio', 6: 'junho', 7: 'julho', 8: 'agosto',
+                9: 'setembro', 10: 'outubro', 11: 'novembro', 12: 'dezembro'
+            }
+            
+            # Converter Mes (número) para Período (texto)
+            df_veiculos['Período'] = df_veiculos['Mes'].map(meses_map_texto)
+        else:
+            # Se não tiver 'Período', tentar criar a partir de outra coluna ou deixar vazio
+            df_veiculos['Mes'] = None
+            df_veiculos['Período'] = None
+        
+        # 4. Reordenar colunas na ordem correta (formato da tabela de veículos)
+        ordem_colunas = ['Mes', 'Período', 'Nºconta', 'Centrocst', 'Nºdoc.ref.', 'Dt.lçto.', 
+                        'Valor', 'QTD', 'Type 05', 'Type 06', 'Account', 'USI', 'Oficina', 
+                        'Doc.compra', 'Texto breve', 'Fornecedor', 'Material', 'Usuário', 
+                        'Fornec.', 'Tipo']
+        
+        # Filtrar apenas colunas que existem no dataframe
+        ordem_colunas_final = [col for col in ordem_colunas if col in df_veiculos.columns]
+        df_veiculos = df_veiculos[ordem_colunas_final].copy()
+        
+        st.sidebar.success(f"✅ Dados de Porto Real carregados: {len(df_veiculos):,} registros")
+        
+        return df_veiculos
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar dados de Porto Real: {str(e)}")
+        import traceback
+        st.error(f"Detalhes: {traceback.format_exc()}")
+        return None
+
+# Carregar dados de veículos usando a MESMA fonte de dados da tabela "Dados"
+# IMPORTANTE: Usar a mesma opção selecionada (opcao_selecionada) para garantir consistência
+df_veiculos = load_veiculos_data(opcao_selecionada)
+
+if df_veiculos is not None and not df_veiculos.empty:
+    # APLICAR OS MESMOS FILTROS DO SIDEBAR (igual à tabela "Dados")
+    # Primeiro, normalizar nomes de colunas para corresponder aos filtros
+    # Mapear colunas do arquivo de veículos para os nomes usados nos filtros
+    mapeamento_colunas = {
+        'Centrocst': 'Centro cst',
+        'Nºdoc.ref.': 'doc.ref',
+        'Nºconta': 'Nº conta',
+        'QTD': 'Qtd.',
+    }
+    
+    df_veiculos_filtrado = df_veiculos.copy()
+    total_antes_filtros = len(df_veiculos_filtrado)  # Total ANTES dos filtros do sidebar
+    
+    # Renomear colunas se necessário
+    for col_antiga, col_nova in mapeamento_colunas.items():
+        if col_antiga in df_veiculos_filtrado.columns and col_nova not in df_veiculos_filtrado.columns:
+            df_veiculos_filtrado.rename(columns={col_antiga: col_nova}, inplace=True)
+    
+    # Aplicar os mesmos filtros que são aplicados em df_filtrado
+    # Usar a mesma função aplicar_filtros_otimizado para garantir consistência
+    filtros_aplicar_veiculos = {}
+    
+    # Filtros básicos
+    if 'USI' in df_veiculos_filtrado.columns:
+        filtro_usina = st.session_state.filtro_usina
+        if filtro_usina and "Todos" not in filtro_usina:
+            filtros_aplicar_veiculos['USI'] = filtro_usina
+    
+    # Mapeamento de números de período para nomes de meses (para arquivo de veículos)
+    meses_map = {
+        1: 'janeiro', 2: 'fevereiro', 3: 'março', 4: 'abril',
+        5: 'maio', 6: 'junho', 7: 'julho', 8: 'agosto',
+        9: 'setembro', 10: 'outubro', 11: 'novembro', 12: 'dezembro'
+    }
+    
+    # Aplicar filtro de Período - verificar se há coluna Mes (numérica) ou Período (texto)
+    filtro_periodo = st.session_state.filtro_periodo
+    if filtro_periodo != "Todos":
         try:
-            # Obter pasta Downloads do usuário
-            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-            file_name = "KE5Z_tabela_filtrada.xlsx"
-            file_path = os.path.join(downloads_path, file_name)
+            periodo_num = float(filtro_periodo)
+            periodo_int = int(periodo_num) if periodo_num == int(periodo_num) else None
             
-            # Salvar arquivo diretamente na pasta Downloads
-            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-                df_filtrado.to_excel(writer, index=False, sheet_name='Dados_Filtrados')
-            
-            st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
-            st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
-        except Exception as e:
-            st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+            # Se houver coluna Mes (numérica), usar ela
+            if 'Mes' in df_veiculos_filtrado.columns:
+                if periodo_int is not None:
+                    filtros_aplicar_veiculos['Mes'] = periodo_int
+            # Se houver coluna Período (texto), usar mapeamento
+            elif 'Período' in df_veiculos_filtrado.columns:
+                if periodo_int is not None and periodo_int in meses_map:
+                    nome_mes = meses_map[periodo_int]
+                    filtros_aplicar_veiculos['Período'] = nome_mes
+        except:
+            # Se não for numérico, tentar usar diretamente
+            if 'Período' in df_veiculos_filtrado.columns:
+                filtros_aplicar_veiculos['Período'] = str(filtro_periodo)
+    
+    if 'Centro cst' in df_veiculos_filtrado.columns:
+        filtro_centro_cst = st.session_state.filtro_centro_cst
+        if filtro_centro_cst != "Todos":
+            filtros_aplicar_veiculos['Centro cst'] = filtro_centro_cst
+    
+    if 'Nº conta' in df_veiculos_filtrado.columns:
+        filtro_conta = st.session_state.filtro_conta_contabil
+        if filtro_conta and len(filtro_conta) > 0:
+            filtros_aplicar_veiculos['Nº conta'] = filtro_conta
+    
+    # Adicionar filtros principais
+    # IMPORTANTE: 'Type 07' foi renomeado para 'Account' no formato de veículos
+    for col_name in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
+        # Mapear 'Type 07' do session_state para 'Account' no dataframe
+        col_name_filtro = col_name
+        if col_name == 'Account':
+            # Tentar buscar por 'Account' ou 'Type 07' no session_state
+            valores = st.session_state.filtros_principais.get('Account', st.session_state.filtros_principais.get('Type 07', ["Todos"]))
+        else:
+            valores = st.session_state.filtros_principais.get(col_name, ["Todos"])
+        
+        if col_name in df_veiculos_filtrado.columns:
+            if valores and "Todos" not in valores:
+                filtros_aplicar_veiculos[col_name] = valores
+    
+    # Adicionar filtros avançados
+    for col_name in ['Oficina', 'Usuário', 'Denominação', 'Dt.lçto.']:
+        if col_name in df_veiculos_filtrado.columns:
+            valores = st.session_state.filtros_avancados.get(col_name, ["Todos"])
+            if valores and "Todos" not in valores:
+                filtros_aplicar_veiculos[col_name] = valores
+    
+    # Aplicar todos os filtros de uma vez
+    # IMPORTANTE: Aplicar filtros diretamente para garantir que funcionem
+    if filtros_aplicar_veiculos:
+        # Aplicar cada filtro sequencialmente para garantir que funcionem
+        for coluna, valores in filtros_aplicar_veiculos.items():
+            if coluna in df_veiculos_filtrado.columns and valores:
+                if isinstance(valores, list):
+                    if "Todos" not in valores and valores:
+                        valores_str = [str(v) for v in valores]
+                        df_veiculos_filtrado = df_veiculos_filtrado[df_veiculos_filtrado[coluna].astype(str).isin(valores_str)]
+                elif valores != "Todos":
+                    try:
+                        valor_num = float(valores)
+                        valor_int = int(valor_num) if valor_num == int(valor_num) else None
+                        
+                        # Verificar se a coluna é numérica
+                        if df_veiculos_filtrado[coluna].dtype in ['int64', 'float64', 'int32', 'float32', 'Int64', 'Float64']:
+                            # Se a coluna é numérica, usar comparação numérica
+                            if valor_int is not None:
+                                df_veiculos_filtrado = df_veiculos_filtrado[df_veiculos_filtrado[coluna] == valor_int]
+                            else:
+                                df_veiculos_filtrado = df_veiculos_filtrado[df_veiculos_filtrado[coluna] == valor_num]
+                        else:
+                            # Se a coluna é texto, usar comparação de string
+                            valor_str = str(valores)
+                            df_veiculos_filtrado = df_veiculos_filtrado[df_veiculos_filtrado[coluna].astype(str) == valor_str]
+                    except (ValueError, TypeError):
+                        # Se não for numérico, usar apenas comparação de string
+                        valor_str = str(valores)
+                        df_veiculos_filtrado = df_veiculos_filtrado[df_veiculos_filtrado[coluna].astype(str) == valor_str]
+    
+    # Contar registros APÓS aplicar filtros do sidebar (antes de filtrar Valor)
+    total_apos_filtros_sidebar = len(df_veiculos_filtrado)
+    
+    # Filtrar valores nulos e zeros na coluna Valor (se existir)
+    # IMPORTANTE: Isso deve ser feito DEPOIS dos filtros do sidebar
+    if 'Valor' in df_veiculos_filtrado.columns:
+        df_veiculos_display = df_veiculos_filtrado[(df_veiculos_filtrado['Valor'].notna()) & (df_veiculos_filtrado['Valor'] != 0)].copy()
+    else:
+        df_veiculos_display = df_veiculos_filtrado.copy()
+    
+    # Limitar a 2.000 itens para performance
+    display_limit_veiculos = 2000
+    # IMPORTANTE: total_registros_filtrados deve ser o total APÓS os filtros do sidebar
+    # (mesmo que depois filtre valores nulos/zeros para exibição)
+    total_registros_filtrados = total_apos_filtros_sidebar  # Total APÓS filtros do sidebar
+    
+    # Mostrar informação sobre filtros aplicados
+    if total_apos_filtros_sidebar != total_antes_filtros:
+        st.caption(f"🔍 Filtros do sidebar aplicados: {total_antes_filtros:,} → {total_apos_filtros_sidebar:,} registros")
+    
+    # Contar registros após filtrar valores nulos/zeros (apenas para informação)
+    total_apos_filtrar_valor = len(df_veiculos_display)
+    
+    # Verificar se há filtros aplicados
+    filtros_aplicados = total_apos_filtros_sidebar != total_antes_filtros
+    
+    # Exibir mensagem com o número correto de registros
+    if filtros_aplicados:
+        # Há filtros aplicados
+        if total_registros_filtrados > display_limit_veiculos:
+            st.info(f"📊 Mostrando {display_limit_veiculos:,} de {total_registros_filtrados:,} registros (após filtros) para otimizar performance")
+            df_veiculos_display = df_veiculos_display.head(display_limit_veiculos)
+        elif total_registros_filtrados > 0:
+            st.info(f"📊 Mostrando todos os {total_registros_filtrados:,} registros (após filtros)")
+        else:
+            st.warning("⚠️ Nenhum registro encontrado após aplicar os filtros.")
+    else:
+        # NÃO há filtros aplicados - mostrar todos os dados
+        if total_registros_filtrados > display_limit_veiculos:
+            st.info(f"📊 Mostrando {display_limit_veiculos:,} de {total_registros_filtrados:,} registros para otimizar performance")
+            df_veiculos_display = df_veiculos_display.head(display_limit_veiculos)
+        elif total_registros_filtrados > 0:
+            st.info(f"📊 Mostrando todos os {total_registros_filtrados:,} registros")
+        else:
+            st.warning("⚠️ Nenhum registro encontrado.")
+    
+    # Mostrar informação adicional se houver diferença após filtrar valores nulos/zeros
+    if total_apos_filtrar_valor < total_apos_filtros_sidebar and total_apos_filtros_sidebar > 0:
+        st.caption(f"ℹ️ {total_apos_filtros_sidebar - total_apos_filtrar_valor:,} registros com Valor nulo/zero foram ocultados da visualização")
+    
+    # Exibir tabela
+    st.dataframe(df_veiculos_display, use_container_width=True)
+    
+    # Botão de download da Tabela de Veículos
+    if st.button("📥 Baixar Tabela de Veículos", use_container_width=True, key="download_veiculos"):
+        # Limite de segurança para exportação Excel
+        LIMITE_EXCEL_SEGURANCA = 1000000  # 1 milhão de linhas
+        
+        if len(df_veiculos_filtrado) > LIMITE_EXCEL_SEGURANCA:
+            st.error(f"❌ **ERRO: Arquivo muito grande para exportação**")
+            st.error(f"📊 **Registros filtrados:** {len(df_veiculos_filtrado):,} linhas")
+            st.error(f"⚠️ **Limite de segurança:** {LIMITE_EXCEL_SEGURANCA:,} linhas")
+            st.warning("🔧 **Soluções:**")
+            st.warning("• Aplique mais filtros para reduzir o número de linhas")
+            st.warning("• Use filtros de Type 05, Type 06, Type 07, USI, Período, etc.")
+            st.warning("• Selecione categorias específicas nos filtros avançados")
+            st.info("💡 **Dica:** O Excel suporta até 1.048.576 linhas, mas recomendamos máximo 1.000.000 para melhor performance")
+        else:
+            with st.spinner("Gerando arquivo da tabela de veículos..."):
+                try:
+                    # Obter pasta Downloads do usuário
+                    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                    file_name = "KE5Z_veiculos_exportado.xlsx"
+                    file_path = os.path.join(downloads_path, file_name)
+                    
+                    # Salvar arquivo filtrado (com os mesmos filtros aplicados)
+                    with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                        df_veiculos_filtrado.to_excel(writer, index=False, sheet_name='Veiculos')
+                    
+                    st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+                    st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+                    st.info(f"📊 Total de registros exportados: {len(df_veiculos_filtrado):,} (com filtros aplicados)")
+                except Exception as e:
+                    st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+else:
+    st.warning("⚠️ Arquivo KE5Z_veiculos.xlsx não encontrado ou está vazio.")
+    st.info("💡 Certifique-se de que a extração foi executada e o arquivo está na pasta 'arquivos'.")
 
 # Tabela de soma por Types separada por Período (apenas valores ≠ 0)
 # OTIMIZAÇÃO: Cache da tabela de soma por types
@@ -1524,21 +2035,36 @@ if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', '
         output_types.seek(0)
 
     if st.button("📥 Baixar Soma por Types", use_container_width=True, key="download_types"):
-        with st.spinner("Gerando arquivo da soma por types..."):
-            try:
-                # Obter pasta Downloads do usuário
-                downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-                file_name = "KE5Z_soma_por_types.xlsx"
-                file_path = os.path.join(downloads_path, file_name)
-                
-                # Salvar arquivo diretamente na pasta Downloads
-                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-                    tabela_pivot_raw.to_excel(writer, index=False, sheet_name='Soma_por_Types')
-                
-                st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
-                st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
-            except Exception as e:
-                st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+        # Limite de segurança para exportação Excel
+        LIMITE_EXCEL_SEGURANCA = 1000000  # 1 milhão de linhas
+        
+        total_linhas_types = len(tabela_pivot_raw)
+        
+        if total_linhas_types > LIMITE_EXCEL_SEGURANCA:
+            st.error(f"❌ **ERRO: Arquivo muito grande para exportação**")
+            st.error(f"📊 **Linhas na tabela:** {total_linhas_types:,}")
+            st.error(f"⚠️ **Limite de segurança:** {LIMITE_EXCEL_SEGURANCA:,} linhas")
+            st.warning("🔧 **Soluções:**")
+            st.warning("• Aplique mais filtros para reduzir o número de linhas")
+            st.warning("• Use filtros de Type, USI, Período, etc.")
+            st.info("💡 **Dica:** O Excel suporta até 1.048.576 linhas, mas recomendamos máximo 1.000.000 para melhor performance")
+        else:
+            with st.spinner("Gerando arquivo da soma por types..."):
+                try:
+                    # Obter pasta Downloads do usuário
+                    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                    file_name = "KE5Z_soma_por_types.xlsx"
+                    file_path = os.path.join(downloads_path, file_name)
+                    
+                    # Salvar arquivo diretamente na pasta Downloads
+                    with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                        tabela_pivot_raw.to_excel(writer, index=False, sheet_name='Soma_por_Types')
+                    
+                    st.success(f"✅ Arquivo salvo com sucesso em: {file_path}")
+                    st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
+                    st.info(f"📊 Total de linhas exportadas: {total_linhas_types:,}")
+                except Exception as e:
+                    st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
 # Footer
 st.markdown("---")
