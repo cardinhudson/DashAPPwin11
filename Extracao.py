@@ -2,7 +2,6 @@
 # SOLUÇÃO DEFINITIVA PARA PROBLEMA PYVENV.CFG
 import sys
 import os
-import unicodedata
 from pathlib import Path
 
 # Limpar variáveis de ambiente virtual que causam problemas
@@ -255,6 +254,227 @@ def validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
     
     return True
 
+# ================== FUNÇÃO DE ANÁLISE DE CONSISTÊNCIA DE ARQUIVOS ==================
+def analisar_consistencia_arquivos(pasta_arquivos, tipo="KE5Z", max_arquivos=5):
+    """
+    Analisa a consistência entre arquivos verificando:
+    - Quantidade de colunas
+    - Nomes das colunas
+    - Tipos de dados das colunas
+    
+    Args:
+        pasta_arquivos: Caminho da pasta com os arquivos
+        tipo: Tipo de arquivo ("KE5Z" ou "KSBB")
+        max_arquivos: Número máximo de arquivos para analisar (padrão: 5)
+    
+    Returns:
+        Dicionário com resultados da análise
+    """
+    if not os.path.exists(pasta_arquivos):
+        return {"erro": f"Pasta não encontrada: {pasta_arquivos}"}
+    
+    arquivos_txt = sorted([f for f in os.listdir(pasta_arquivos) if f.endswith('.txt')])
+    
+    if not arquivos_txt:
+        return {"erro": "Nenhum arquivo .txt encontrado"}
+    
+    # Limitar número de arquivos para análise
+    arquivos_analise = arquivos_txt[:max_arquivos]
+    
+    print(f"\n{'='*80}")
+    print(f"🔍 ANÁLISE DE CONSISTÊNCIA - {tipo}")
+    print(f"{'='*80}")
+    print(f"📁 Arquivos encontrados: {len(arquivos_txt)}")
+    print(f"🔬 Analisando: {len(arquivos_analise)} arquivo(s)")
+    print(f"{'='*80}\n")
+    
+    resultados = {
+        "tipo": tipo,
+        "total_arquivos": len(arquivos_txt),
+        "arquivos_analisados": len(arquivos_analise),
+        "arquivos": [],
+        "consistencia": {
+            "quantidade_colunas": True,
+            "nomes_colunas": True,
+            "tipos_colunas": True,
+            "problemas": []
+        }
+    }
+    
+    estruturas = []
+    skiprows_padrao = 9 if tipo == "KE5Z" else 3
+    
+    for arquivo in arquivos_analise:
+        caminho_arquivo = os.path.join(pasta_arquivos, arquivo)
+        
+        try:
+            # Tentar detectar linha do cabeçalho automaticamente
+            linha_detectada = detectar_linha_cabecalho(caminho_arquivo, max_linhas=25)
+            skiprows_usar = linha_detectada if linha_detectada is not None else skiprows_padrao
+            
+            # Ler apenas primeiras linhas para análise (mais rápido)
+            df_temp = pd.read_csv(
+                caminho_arquivo,
+                sep='\t',
+                encoding='latin1',
+                engine='python',
+                skiprows=skiprows_usar,
+                nrows=100,  # Ler apenas 100 linhas para análise
+                on_bad_lines='skip'
+            )
+            
+            # Remover espaços das colunas
+            df_temp.columns = df_temp.columns.str.strip()
+            
+            # Aplicar padronização
+            df_temp = padronizar_colunas(df_temp, arquivo_nome="")
+            
+            estrutura = {
+                "arquivo": arquivo,
+                "quantidade_colunas": len(df_temp.columns),
+                "nomes_colunas": list(df_temp.columns),
+                "tipos_colunas": {col: str(df_temp[col].dtype) for col in df_temp.columns},
+                "sucesso": True
+            }
+            
+            estruturas.append(estrutura)
+            resultados["arquivos"].append(estrutura)
+            
+            print(f"✅ {arquivo}")
+            print(f"   Colunas: {estrutura['quantidade_colunas']}")
+            print(f"   Primeiras 5 colunas: {estrutura['nomes_colunas'][:5]}")
+            
+        except Exception as e:
+            erro_info = {
+                "arquivo": arquivo,
+                "erro": str(e),
+                "sucesso": False
+            }
+            estruturas.append(erro_info)
+            resultados["arquivos"].append(erro_info)
+            resultados["consistencia"]["problemas"].append(f"{arquivo}: {str(e)}")
+            print(f"❌ {arquivo}: Erro - {str(e)}")
+            continue
+    
+    # Verificar consistência
+    if len(estruturas) == 0:
+        resultados["consistencia"]["problemas"].append("Nenhum arquivo foi lido com sucesso")
+        return resultados
+    
+    # Filtrar apenas estruturas válidas
+    estruturas_validas = [e for e in estruturas if e.get("sucesso", False)]
+    
+    if len(estruturas_validas) == 0:
+        resultados["consistencia"]["problemas"].append("Nenhum arquivo válido para comparação")
+        return resultados
+    
+    # 1. Verificar quantidade de colunas
+    quantidades = [e["quantidade_colunas"] for e in estruturas_validas]
+    quantidade_unica = len(set(quantidades)) == 1
+    
+    if not quantidade_unica:
+        resultados["consistencia"]["quantidade_colunas"] = False
+        problemas = {}
+        for qtd in set(quantidades):
+            arquivos_com_qtd = [e["arquivo"] for e in estruturas_validas if e["quantidade_colunas"] == qtd]
+            problemas[qtd] = arquivos_com_qtd
+        resultados["consistencia"]["problemas"].append(
+            f"Quantidade de colunas diferente: {problemas}"
+        )
+        print(f"\n⚠️  QUANTIDADE DE COLUNAS DIFERENTE:")
+        for qtd, arquivos in problemas.items():
+            print(f"   {qtd} colunas: {arquivos}")
+    else:
+        print(f"\n✅ QUANTIDADE DE COLUNAS: Consistente ({quantidades[0]} colunas)")
+    
+    # 2. Verificar nomes das colunas
+    primeira_estrutura = estruturas_validas[0]
+    nomes_referencia = set(primeira_estrutura["nomes_colunas"])
+    
+    nomes_consistentes = True
+    diferencas_nomes = {}
+    
+    for estrutura in estruturas_validas[1:]:
+        nomes_atual = set(estrutura["nomes_colunas"])
+        
+        # Verificar diferenças
+        faltando = nomes_referencia - nomes_atual
+        extras = nomes_atual - nomes_referencia
+        
+        if faltando or extras:
+            nomes_consistentes = False
+            diferencas_nomes[estrutura["arquivo"]] = {
+                "faltando": list(faltando),
+                "extras": list(extras)
+            }
+    
+    if not nomes_consistentes:
+        resultados["consistencia"]["nomes_colunas"] = False
+        resultados["consistencia"]["problemas"].append(
+            f"Diferenças nos nomes das colunas: {diferencas_nomes}"
+        )
+        print(f"\n⚠️  NOMES DE COLUNAS DIFERENTES:")
+        for arquivo, difs in diferencas_nomes.items():
+            if difs["faltando"]:
+                print(f"   {arquivo} - Faltando: {difs['faltando'][:5]}")
+            if difs["extras"]:
+                print(f"   {arquivo} - Extras: {difs['extras'][:5]}")
+    else:
+        print(f"\n✅ NOMES DE COLUNAS: Consistente")
+        print(f"   Colunas: {sorted(list(nomes_referencia))[:10]}...")
+    
+    # 3. Verificar tipos de dados
+    tipos_referencia = primeira_estrutura["tipos_colunas"]
+    tipos_consistentes = True
+    diferencas_tipos = {}
+    
+    for estrutura in estruturas_validas[1:]:
+        tipos_atual = estrutura["tipos_colunas"]
+        
+        # Comparar tipos das colunas comuns
+        colunas_comuns = set(tipos_referencia.keys()) & set(tipos_atual.keys())
+        diferencas = {}
+        
+        for col in colunas_comuns:
+            if tipos_referencia[col] != tipos_atual[col]:
+                diferencas[col] = {
+                    "referencia": tipos_referencia[col],
+                    "atual": tipos_atual[col]
+                }
+        
+        if diferencas:
+            tipos_consistentes = False
+            diferencas_tipos[estrutura["arquivo"]] = diferencas
+    
+    if not tipos_consistentes:
+        resultados["consistencia"]["tipos_colunas"] = False
+        resultados["consistencia"]["problemas"].append(
+            f"Diferenças nos tipos de dados: {diferencas_tipos}"
+        )
+        print(f"\n⚠️  TIPOS DE DADOS DIFERENTES:")
+        for arquivo, difs in list(diferencas_tipos.items())[:3]:  # Mostrar apenas 3 primeiros
+            print(f"   {arquivo}:")
+            for col, tipos in list(difs.items())[:5]:  # Mostrar apenas 5 primeiras diferenças
+                print(f"      {col}: {tipos['referencia']} → {tipos['atual']}")
+    else:
+        print(f"\n✅ TIPOS DE DADOS: Consistente")
+    
+    # Resumo final
+    print(f"\n{'='*80}")
+    if (resultados["consistencia"]["quantidade_colunas"] and 
+        resultados["consistencia"]["nomes_colunas"] and 
+        resultados["consistencia"]["tipos_colunas"]):
+        print("✅ TODOS OS ARQUIVOS SÃO CONSISTENTES!")
+        print("   Pronto para merge sem problemas")
+    else:
+        print("⚠️  INCONSISTÊNCIAS DETECTADAS:")
+        for problema in resultados["consistencia"]["problemas"][:5]:
+            print(f"   - {problema[:100]}...")
+        print("\n   ⚠️  A padronização de colunas será aplicada para resolver diferenças")
+    print(f"{'='*80}\n")
+    
+    return resultados
+
 # ================== FUNÇÃO DE PADRONIZAÇÃO DE COLUNAS ==================
 def padronizar_colunas(df, arquivo_nome=""):
     """
@@ -285,28 +505,20 @@ def padronizar_colunas(df, arquivo_nome=""):
                       'centro', 'Centro', 'CENTRO', 'centro de custo', 'Centro de Custo'],
         
         # Coluna 'Texto'
-        'Texto': ['texto', 'Texto', 'TEXTO', 'descrição', 'Descrição', 'DESCRIÇÃO'],
+        'Texto': ['texto', 'Texto', 'TEXTO', 'descrição', 'Descrição', 'DESCRIÇÃO',
+                 'texto breve', 'Texto breve', 'TEXTO BREVE', 'descrição material'],
         
-        # Coluna 'Texto breve material' (CRÍTICO para merge com KSBB)
-        # IMPORTANTE: Esta coluna pode aparecer truncada como apenas "Texto" em alguns arquivos
-        # NOTA: "Texto" também é processado separadamente, mas priorizamos "Texto breve material"
+        # Coluna 'Texto breve material' (específica para arquivos KSBB)
         'Texto breve material': ['texto breve material', 'Texto breve material', 'TEXTO BREVE MATERIAL',
-                                'texto breve', 'Texto breve', 'TEXTO BREVE',
-                                'descrição material', 'Descrição Material', 'DESCRIÇÃO MATERIAL',
-                                'texto breve do material', 'Texto Breve do Material',
-                                'descrição do material', 'Descrição do Material'],
+                               'texto breve mat', 'Texto breve mat', 'descrição material', 'Descrição Material',
+                               'texto material', 'Texto material', 'TEXTO MATERIAL'],
         
         # Coluna 'Fornec.'
         'Fornec.': ['fornec.', 'Fornec.', 'FORNEC.', 'fornecedor código', 'Fornecedor código',
                    'FORNECEDOR CÓDIGO', 'fornec', 'Fornec', 'FORNEC'],
         
-        # Coluna 'Material'
-        'Material': ['material', 'Material', 'MATERIAL', 'mat', 'Mat', 'MAT',
-                     'nº material', 'Nº Material', 'Nº material', 'NºMaterial',
-                     'material nº', 'Material Nº', 'material id', 'Material ID',
-                     'código material', 'Código Material', 'codigo material',
-                     'nº do material', 'Nº do Material', 'material código',
-                     'Material Código', 'cod material', 'Cod Material'],
+        # Coluna 'Material' (DEVE VIR ANTES DE 'Texto' para evitar conflitos)
+        'Material': ['material', 'Material', 'MATERIAL', 'mat', 'Mat', 'MAT', 'Código Material', 'Código material'],
         
         # Coluna 'Item'
         'Item': ['item', 'Item', 'ITEM'],
@@ -356,14 +568,6 @@ def padronizar_colunas(df, arquivo_nome=""):
         if nome_fixo in colunas_originais:
             continue
         
-        # CRÍTICO: Proteger colunas importantes de serem renomeadas incorretamente
-        # Se 'Material' existe e estamos processando 'Texto', pular (evitar conflito)
-        if nome_fixo == 'Texto' and 'Material' in colunas_originais:
-            # Verificar se 'Material' não está na lista de variações de 'Texto'
-            if 'Material' not in variações and 'material' not in [v.lower() for v in variações]:
-                # Pular processamento de 'Texto' se 'Material' existe e não é uma variação
-                continue
-        
         # Procurar por variações
         coluna_encontrada = None
         
@@ -374,51 +578,30 @@ def padronizar_colunas(df, arquivo_nome=""):
                 break
         
         # 2. Busca parcial (se não encontrou exato)
+        # CORREÇÃO: Evitar mapear 'Material' para 'Texto' - verificar correspondência exata primeiro
         if not coluna_encontrada:
             for col_original in colunas_originais:
                 col_lower = col_original.strip().lower()
-                # Normalizar: remover acentos e caracteres especiais para comparação
-                col_normalized = ''.join(c for c in unicodedata.normalize('NFD', col_lower) 
-                                        if unicodedata.category(c) != 'Mn')
-                col_clean = ''.join(c for c in col_normalized if c.isalnum() or c.isspace())
-                
                 for variacao in variações:
-                    var_normalized = ''.join(c for c in unicodedata.normalize('NFD', variacao.lower()) 
-                                            if unicodedata.category(c) != 'Mn')
-                    var_clean = ''.join(c for c in var_normalized if c.isalnum() or c.isspace())
-                    
-                    if var_clean in col_clean or col_clean in var_clean:
+                    variacao_lower = variacao.lower()
+                    # Verificar correspondência exata primeiro (mais restritiva)
+                    if col_lower == variacao_lower:
+                        coluna_encontrada = col_original
+                        break
+                    # Depois verificar correspondência parcial (menos restritiva)
+                    elif variacao_lower in col_lower or col_lower in variacao_lower:
+                        # CORREÇÃO CRÍTICA: Evitar mapear 'Material' para 'Texto'
+                        # Se estamos procurando 'Texto' e encontramos 'Material', não mapear
+                        if nome_fixo == 'Texto' and 'material' in col_lower and 'texto' not in col_lower:
+                            continue  # Pular este match - Material não deve virar Texto
                         coluna_encontrada = col_original
                         break
                 if coluna_encontrada:
                     break
         
-        # 3. Busca de fallback específica para coluna 'Material' (caso não encontrada)
-        # Esta busca é mais agressiva e procura qualquer coluna que contenha "material"
-        if not coluna_encontrada and nome_fixo == 'Material':
-            for col_original in colunas_originais:
-                col_lower = col_original.strip().lower()
-                # Normalizar e limpar a coluna
-                col_normalized = ''.join(c for c in unicodedata.normalize('NFD', col_lower) 
-                                        if unicodedata.category(c) != 'Mn')
-                col_clean = ''.join(c for c in col_normalized if c.isalnum() or c.isspace())
-                # Procurar por "material" ou "mat" na coluna
-                if 'material' in col_clean or ('mat' in col_clean and len(col_clean) <= 10):
-                    coluna_encontrada = col_original
-                    if arquivo_nome:
-                        print(f"   🔍 Fallback: Coluna '{col_original}' detectada como 'Material'")
-                    break
-        
-        # 4. Se encontrou, adicionar ao mapeamento de renomeação
+        # 3. Se encontrou, adicionar ao mapeamento de renomeação
         # Verificar se a coluna já não foi mapeada anteriormente
-        # CRÍTICO: Proteger 'Material' de ser renomeado para 'Texto'
         if coluna_encontrada and coluna_encontrada not in renomeacao.keys():
-            # Proteção especial: não renomear 'Material' para 'Texto'
-            if coluna_encontrada == 'Material' and nome_fixo == 'Texto':
-                if arquivo_nome:
-                    print(f"   ⚠️  Protegendo coluna 'Material' de ser renomeada para 'Texto'")
-                continue
-            
             renomeacao[coluna_encontrada] = nome_fixo
             if arquivo_nome:
                 print(f"   🔄 '{coluna_encontrada}' → '{nome_fixo}'")
@@ -430,6 +613,13 @@ def padronizar_colunas(df, arquivo_nome=""):
     
     return df
 # ======================================================================
+
+# ================== ANÁLISE DE CONSISTÊNCIA ANTES DO PROCESSAMENTO ==================
+# Executar análise de consistência dos arquivos KE5Z
+print("\n" + "="*80)
+print("🔍 INICIANDO ANÁLISE DE CONSISTÊNCIA DOS ARQUIVOS")
+print("="*80)
+resultado_analise_ke5z = analisar_consistencia_arquivos(pasta, tipo="KE5Z", max_arquivos=5)
 
 # Lista para armazenar os DataFrames
 dataframes = []
@@ -851,8 +1041,18 @@ if not os.path.exists(pasta_ksbb):
     pasta_ksbb = None
 
 print(f"Pasta KSBB encontrada: {pasta_ksbb}")
+
+# ================== ANÁLISE DE CONSISTÊNCIA DOS ARQUIVOS KSBB ==================
+# Executar análise de consistência dos arquivos KSBB (se disponível)
+if pasta_ksbb and os.path.exists(pasta_ksbb):
+    resultado_analise_ksbb = analisar_consistencia_arquivos(pasta_ksbb, tipo="KSBB", max_arquivos=5)
+else:
+    resultado_analise_ksbb = None
+
 # Lista para armazenar os DataFrames
 dataframes_ksbb = []
+# Lista para armazenar informações detalhadas de cada arquivo
+info_arquivos_ksbb = []
 
 # Iterar sobre todos os arquivos na pasta (apenas se disponível)
 if pasta_ksbb:
@@ -861,9 +1061,9 @@ if pasta_ksbb:
 
         # Verificar se é um arquivo e tem a extensão desejada (.txt)
         if os.path.isfile(caminho_arquivo) and arquivo.endswith('.txt'):
-            try:
-                print(f"Lendo: {arquivo}")
+            print(f"Lendo: {arquivo}")
 
+            try:
                 # Ler o arquivo em um DataFrame
                 # CORREÇÃO: Adicionar tratamento de erros de parsing
                 df_ksbb = pd.read_csv(
@@ -876,280 +1076,162 @@ if pasta_ksbb:
                     on_bad_lines='skip'  # Pular linhas com erro de parsing
                 )
 
-                # Verificar se o DataFrame foi lido corretamente
-                if df_ksbb.empty:
-                    print(f"   ⚠️  AVISO: Arquivo {arquivo} está vazio após leitura. Pulando...")
-                    continue
-
-                # CRÍTICO: Aplicar padronização de colunas ANTES de usar
-                # Isso garante que variações de nomes (Material, material, MATERIAL, etc) sejam normalizadas
-                print(f"   📋 Colunas ANTES da padronização: {list(df_ksbb.columns)[:10]}...")
-                df_ksbb = padronizar_colunas(df_ksbb, arquivo_nome=arquivo)
-                print(f"   📋 Colunas DEPOIS da padronização: {list(df_ksbb.columns)[:10]}...")
+                # remover espaços em branco dos nomes das colunas
+                df_ksbb.columns = df_ksbb.columns.str.strip()
                 
-                # Verificar se a coluna 'Material' existe após padronização
-                material_encontrado_inicial = 'Material' in df_ksbb.columns
-                if not material_encontrado_inicial:
-                    print(f"   ⚠️  AVISO: Coluna 'Material' não encontrada em {arquivo} após padronização inicial!")
-                    print(f"   📋 Colunas disponíveis: {list(df_ksbb.columns)}")
-                    print(f"   🔄 Tentando estratégias alternativas...")
+                # Remover coluna 'Unnamed: 0' se existir (tab extra no início do arquivo)
+                if 'Unnamed: 0' in df_ksbb.columns:
+                    df_ksbb = df_ksbb.drop(columns=['Unnamed: 0'])
+                
+                # PADRONIZAÇÃO ESPECÍFICA PARA KSBB
+                # Criar mapeamento robusto que aceita variações nos nomes
+                print(f"   🔧 Padronizando nomes das colunas KSBB...")
+                
+                mapeamento_ksbb = {
+                    # Data de lançamento
+                    'Dt.lçto.': ['dt.lçto.', 'Dt.lçto.', 'dt.lcto.', 'Dt.lcto.', 'DT.LÇTO.', 'data lancamento', 'Data lançamento'],
                     
-                    # Tentar encontrar coluna similar manualmente
-                    colunas_lower = [col.lower().strip() for col in df_ksbb.columns]
-                    coluna_material_candidata = None
-                    for idx, col_lower in enumerate(colunas_lower):
-                        if 'material' in col_lower or (len(col_lower) <= 10 and 'mat' in col_lower):
-                            coluna_material_candidata = df_ksbb.columns[idx]
-                            print(f"   🔍 Coluna candidata encontrada: '{coluna_material_candidata}'")
-                            # Renomear manualmente
-                            df_ksbb.rename(columns={coluna_material_candidata: 'Material'}, inplace=True)
-                            print(f"   ✅ Coluna '{coluna_material_candidata}' renomeada para 'Material'")
-                            break
+                    # Documento de compra
+                    'Doc.compra': ['doc.compra', 'Doc.compra', 'DOC.COMPRA', 'documento compra', 'Documento compra'],
                     
-                    # Se ainda não encontrou, tentar ler com skiprows diferente
-                    if 'Material' not in df_ksbb.columns:
-                        print(f"   🔄 Tentando ler arquivo com skiprows alternativos...")
-                        # Tentar diferentes valores de skiprows, incluindo 0 (sem pular linhas)
-                        # IMPORTANTE: skiprows=9 é o correto para KSBB novembro.txt (cabeçalho na linha 9)
-                        for skip in [0, 1, 2, 4, 5, 6, 7, 8, 9, 10]:
-                            try:
-                                df_teste = pd.read_csv(
-                                    caminho_arquivo,
-                                    sep='\t',
-                                    encoding='latin1',
-                                    engine='python',
-                                    skiprows=skip,
-                                    skipfooter=1,
-                                    on_bad_lines='skip'
-                                )
-                                
-                                # Verificar se o DataFrame não está vazio e tem colunas válidas
-                                if df_teste.empty or len(df_teste.columns) < 2:
-                                    continue
-                                
-                                # Verificar se há muitas colunas "Unnamed" (indica cabeçalho errado)
-                                unnamed_count = sum(1 for col in df_teste.columns if 'Unnamed' in str(col))
-                                if unnamed_count > len(df_teste.columns) * 0.5:
-                                    continue
-                                
-                                df_teste = padronizar_colunas(df_teste, arquivo_nome="")
-                                
-                                # Verificar se Material foi encontrado após padronização
-                                if 'Material' in df_teste.columns:
-                                    print(f"   ✅ Sucesso com skiprows={skip}!")
-                                    print(f"   📋 Colunas encontradas: {list(df_teste.columns)[:10]}...")
-                                    df_ksbb = df_teste
-                                    break
-                                else:
-                                    # Se não encontrou Material, verificar se há coluna com nome similar
-                                    colunas_lower = [c.lower().strip() for c in df_teste.columns]
-                                    for idx, col_lower in enumerate(colunas_lower):
-                                        if 'material' in col_lower:
-                                            col_original = df_teste.columns[idx]
-                                            print(f"   🔍 Encontrada coluna similar '{col_original}' com skiprows={skip}")
-                                            df_teste.rename(columns={col_original: 'Material'}, inplace=True)
-                                            print(f"   ✅ Coluna '{col_original}' renomeada para 'Material'")
-                                            df_ksbb = df_teste
-                                            break
-                                    # Verificar novamente se Material foi encontrado após renomeação
-                                    if 'Material' in df_teste.columns:
-                                        print(f"   ✅ Material encontrado após renomeação com skiprows={skip}!")
-                                        df_ksbb = df_teste
-                                        break
-                            except Exception as e:
-                                continue
-                        
-                        # Se ainda não encontrou, verificar se há colunas "Unnamed" que podem ser Material
-                        if 'Material' not in df_ksbb.columns:
-                            print(f"   🔍 Verificando se colunas 'Unnamed' ou outras podem conter dados de Material...")
-                            
-                            # Verificar se o DataFrame não está vazio
-                            if df_ksbb.empty:
-                                print(f"   ⚠️  DataFrame vazio, não é possível analisar colunas")
-                            else:
-                                print(f"   📊 Analisando {len(df_ksbb)} linhas e {len(df_ksbb.columns)} colunas...")
-                            
-                            # Verificar TODAS as colunas (não apenas Unnamed) para encontrar Material
-                            melhor_candidata = None
-                            melhor_score = 0
-                            candidatas_info = []
-                            
-                            for col in df_ksbb.columns:
-                                try:
-                                    # Pular colunas que já sabemos que não são Material
-                                    if col in ['N° conta', 'Nº conta', 'FA00']:
-                                        continue
-                                    
-                                    # Tentar converter para numérico
-                                    valores_numericos = pd.to_numeric(df_ksbb[col], errors='coerce')
-                                    valores_validos = valores_numericos.notna().sum()
-                                    valores_nao_zero = (valores_numericos != 0).sum()
-                                    
-                                    if len(df_ksbb) > 0:
-                                        pct_validos = valores_validos / len(df_ksbb)
-                                        pct_nao_zero = valores_nao_zero / len(df_ksbb) if valores_validos > 0 else 0
-                                        
-                                        # Score baseado em:
-                                        # - Percentual de valores válidos (numéricos)
-                                        # - Percentual de valores não-zero
-                                        # - Tamanho médio dos valores (códigos de material geralmente são grandes)
-                                        score = pct_validos * 0.4 + pct_nao_zero * 0.4
-                                        
-                                        if valores_validos > 0:
-                                            valores_nao_zero_series = valores_numericos[valores_numericos != 0]
-                                            if len(valores_nao_zero_series) > 0:
-                                                media_valores = valores_nao_zero_series.abs().mean()
-                                                # Códigos de material geralmente são números grandes (6+ dígitos)
-                                                # Mas também podem ser menores, então vamos ser mais flexíveis
-                                                if 1000 <= media_valores <= 9999999999:
-                                                    score += 0.2
-                                                elif 100 <= media_valores < 1000:
-                                                    score += 0.1  # Pode ser código menor
-                                        
-                                        # Armazenar informações da candidata para debug
-                                        candidatas_info.append({
-                                            'coluna': col,
-                                            'score': score,
-                                            'pct_validos': pct_validos,
-                                            'pct_nao_zero': pct_nao_zero,
-                                            'valores_validos': valores_validos
-                                        })
-                                        
-                                        # REDUZIR THRESHOLD: Aceitar candidatas com pelo menos 20% de valores válidos
-                                        # Isso torna a detecção mais permissiva
-                                        if score > melhor_score and pct_validos > 0.2 and pct_nao_zero > 0.2:
-                                            melhor_score = score
-                                            melhor_candidata = col
-                                except Exception as e:
-                                    continue
-                            
-                            # Log de debug: mostrar todas as candidatas analisadas
-                            if candidatas_info:
-                                print(f"   📋 Candidatas analisadas:")
-                                for info in sorted(candidatas_info, key=lambda x: x['score'], reverse=True)[:5]:
-                                    print(f"      - '{info['coluna']}': score={info['score']:.2f}, "
-                                          f"válidos={info['pct_validos']:.1%}, não-zero={info['pct_nao_zero']:.1%}")
-                            
-                            # Se encontrou uma candidata, renomear
-                            if melhor_candidata:
-                                print(f"   🔍 Coluna '{melhor_candidata}' identificada como Material (score: {melhor_score:.2f})")
-                                df_ksbb.rename(columns={melhor_candidata: 'Material'}, inplace=True)
-                                print(f"   ✅ Coluna '{melhor_candidata}' renomeada para 'Material'")
-                            else:
-                                print(f"   ⚠️  Nenhuma coluna candidata encontrada com critérios rígidos")
-                                print(f"   🔄 Tentando estratégia de fallback mais permissiva...")
-                                
-                                # ESTRATÉGIA DE FALLBACK: Se não encontrou com critérios rígidos,
-                                # tentar com critérios mais permissivos
-                                melhor_candidata_fallback = None
-                                melhor_score_fallback = 0
-                                
-                                for col in df_ksbb.columns:
-                                    # Pular colunas conhecidas que não são Material
-                                    if col in ['N° conta', 'Nº conta', 'FA00']:
-                                        continue
-                                    
-                                    try:
-                                        valores_numericos = pd.to_numeric(df_ksbb[col], errors='coerce')
-                                        valores_validos = valores_numericos.notna().sum()
-                                        
-                                        if len(df_ksbb) > 0 and valores_validos > 0:
-                                            pct_validos = valores_validos / len(df_ksbb)
-                                            
-                                            # Critérios mais permissivos: apenas precisa ter alguns valores numéricos
-                                            if pct_validos > 0.1:  # Apenas 10% de valores válidos
-                                                # Score simples baseado apenas em valores válidos
-                                                score_fallback = pct_validos
-                                                
-                                                if score_fallback > melhor_score_fallback:
-                                                    melhor_score_fallback = score_fallback
-                                                    melhor_candidata_fallback = col
-                                    except:
-                                        continue
-                                
-                                # Se encontrou uma candidata no fallback, usar ela
-                                if melhor_candidata_fallback:
-                                    print(f"   🔍 Fallback: Coluna '{melhor_candidata_fallback}' identificada como Material (score: {melhor_score_fallback:.2f})")
-                                    df_ksbb.rename(columns={melhor_candidata_fallback: 'Material'}, inplace=True)
-                                    print(f"   ✅ Coluna '{melhor_candidata_fallback}' renomeada para 'Material' (modo fallback)")
-                                else:
-                                    # ÚLTIMA TENTATIVA: Se ainda não encontrou, usar a primeira coluna "Unnamed"
-                                    # que tenha pelo menos alguns dados
-                                    for col in df_ksbb.columns:
-                                        if 'Unnamed' in str(col):
-                                            try:
-                                                # Verificar se tem pelo menos alguns valores não vazios
-                                                valores_nao_vazios = df_ksbb[col].notna().sum()
-                                                if valores_nao_vazios > len(df_ksbb) * 0.05:  # Pelo menos 5% de dados
-                                                    print(f"   🔍 Última tentativa: Usando coluna '{col}' como Material")
-                                                    df_ksbb.rename(columns={col: 'Material'}, inplace=True)
-                                                    print(f"   ✅ Coluna '{col}' renomeada para 'Material' (última tentativa)")
-                                                    break
-                                            except:
-                                                continue
+                    # Número documento referência
+                    'doc.ref': ['nº doc.ref', 'Nº doc.ref', 'N° doc.ref', 'doc.ref', 'Doc.ref', 'nº doc ref', 'doc ref', 'numero doc ref'],
                     
-                    # Se ainda não encontrou após TODAS as tentativas, pular arquivo
-                    if 'Material' not in df_ksbb.columns:
-                        print(f"   ❌ ERRO: Não foi possível encontrar coluna 'Material' em {arquivo} após todas as tentativas")
-                        print(f"   📋 Colunas finais disponíveis: {list(df_ksbb.columns)}")
-                        print(f"   ⏭️  Pulando processamento deste arquivo...")
+                    # Número documento
+                    'Nº doc.': ['nº doc.', 'Nº doc.', 'N° doc.', 'numero doc', 'Numero doc', 'NÚM DOC'],
+                    
+                    # Material (código do material)
+                    'Material': ['material', 'Material', 'MATERIAL', 'mat', 'Mat', 'codigo material', 'Código material'],
+                    
+                    # Texto breve material (descrição)
+                    'Texto breve material': ['texto breve material', 'Texto breve material', 'TEXTO BREVE MATERIAL',
+                                           'texto breve mat', 'Texto breve mat', 'descricao material', 'Descrição material',
+                                           'texto material', 'Texto material'],
+                    
+                    # Período
+                    'Período': ['per', 'Per', 'PER', 'periodo', 'Periodo', 'PERÍODO', 'PERIODO'],
+                    
+                    # Texto cabeçalho documento
+                    'Txt.cab.doc.': ['txt.cab.doc.', 'Txt.cab.doc.', 'TXT.CAB.DOC.', 'texto cab doc', 'Texto cabeçalho']
+                }
+                
+                # Aplicar mapeamento
+                renomeacoes_ksbb = {}
+                colunas_originais = df_ksbb.columns.tolist()
+                
+                for nome_padrao, variacoes in mapeamento_ksbb.items():
+                    # Se já existe com nome correto, pular
+                    if nome_padrao in colunas_originais:
                         continue
-                    else:
-                        # Se encontrou Material após tentativas alternativas, confirmar sucesso
-                        if not material_encontrado_inicial:
-                            print(f"   ✅ Material encontrado e processado com sucesso após tentativas alternativas!")
-
-                # CRÍTICO: Converter Material para string ANTES de filtrar
-                # Isso preserva zeros à esquerda e garante normalização consistente
-                if 'Material' in df_ksbb.columns:
-                    # Converter para string, mas tratar NaN corretamente
-                    df_ksbb['Material'] = df_ksbb['Material'].astype(str)
-                    # Substituir 'nan' (string) por NaN real para filtro correto
-                    df_ksbb['Material'] = df_ksbb['Material'].replace('nan', pd.NA)
+                    
+                    # Procurar variações
+                    for col_original in colunas_originais:
+                        col_lower = col_original.strip().lower()
+                        
+                        # Verificar se corresponde a alguma variação
+                        for variacao in variacoes:
+                            if col_lower == variacao.lower():
+                                if col_original not in renomeacoes_ksbb:
+                                    renomeacoes_ksbb[col_original] = nome_padrao
+                                    print(f"   🔄 '{col_original}' → '{nome_padrao}'")
+                                break
                 
-                # Filtrar a coluna Material com não vazias e diferentes de 0 e '0'
-                # CRÍTICO: Usar pd.isna() para detectar tanto NaN quanto pd.NA
-                df_ksbb = df_ksbb[
-                    df_ksbb['Material'].notna() & 
-                    (df_ksbb['Material'] != '0') & 
-                    (df_ksbb['Material'] != 0) &
-                    (df_ksbb['Material'] != '') &
-                    (~df_ksbb['Material'].astype(str).str.lower().isin(['nan', 'none', 'null']))
-                ]
+                # Aplicar renomeações
+                if renomeacoes_ksbb:
+                    df_ksbb.rename(columns=renomeacoes_ksbb, inplace=True)
+                    print(f"   ✅ {len(renomeacoes_ksbb)} coluna(s) padronizada(s)")
+                else:
+                    print(f"   ✅ Nomes já estão padronizados")
+                
+                print(f"   📋 Colunas finais: {list(df_ksbb.columns)}")
 
-                # Verificar se restaram linhas após o filtro
-                if df_ksbb.empty:
-                    print(f"   ⚠️  AVISO: Nenhuma linha válida encontrada em {arquivo} após filtro. Pulando...")
-                    continue
+                # CORREÇÃO: Verificar se coluna 'Material' existe após padronização
+                # A padronização pode ter renomeado incorretamente 'Material' para 'Texto'
+                # Precisamos verificar e corrigir isso
+                if 'Material' not in df_ksbb.columns:
+                    print(f"   ⚠️  AVISO: Coluna 'Material' não encontrada em {arquivo} após padronização!")
+                    print(f"   Colunas disponíveis: {list(df_ksbb.columns)[:10]}...")
+                    
+                    # Verificar se 'Material' foi renomeado incorretamente para 'Texto'
+                    # Se 'Texto' existe mas não 'Material', pode ser que a padronização tenha errado
+                    # Neste caso, precisamos verificar se há uma coluna que deveria ser 'Material'
+                    # Olhando a estrutura dos arquivos KSBB, eles têm 'Material' e 'Texto' como colunas separadas
+                    
+                    # Tentar encontrar coluna que seja o código do material (geralmente numérica ou alfanumérica)
+                    # Primeiro, verificar se há uma coluna que parece ser Material (não é 'Texto')
+                    colunas_candidatas = []
+                    for col in df_ksbb.columns:
+                        col_lower = str(col).lower()
+                        # Se a coluna contém 'material' mas não é 'Texto breve material', pode ser Material
+                        if 'material' in col_lower and 'texto' not in col_lower and 'breve' not in col_lower:
+                            colunas_candidatas.append(col)
+                        # Ou se é uma coluna numérica/alphanumérica que não é 'Texto'
+                        elif col != 'Texto' and col != 'Texto breve material' and df_ksbb[col].dtype in ['object', 'int64', 'float64']:
+                            # Verificar se parece ser código de material (valores únicos altos)
+                            if df_ksbb[col].nunique() > len(df_ksbb) * 0.5:  # Mais de 50% são únicos
+                                colunas_candidatas.append(col)
+                    
+                    if colunas_candidatas:
+                        # Usar a primeira candidata como Material
+                        col_material = colunas_candidatas[0]
+                        print(f"   🔄 Encontrada coluna candidata para Material: '{col_material}'")
+                        df_ksbb.rename(columns={col_material: 'Material'}, inplace=True)
+                    else:
+                        # Se não encontrar, verificar se 'Texto breve material' pode ser usado como Material
+                        # (caso especial onde Material e Texto breve material são a mesma coisa)
+                        if 'Texto breve material' in df_ksbb.columns:
+                            print(f"   ⚠️  Usando 'Texto breve material' como Material (estrutura especial)")
+                            # Criar coluna Material a partir de Texto breve material (primeiros caracteres)
+                            df_ksbb['Material'] = df_ksbb['Texto breve material'].astype(str).str[:20]
+                        else:
+                            print(f"   ⚠️  Este arquivo KSBB não tem coluna Material identificável.")
+                            print(f"   Estrutura do arquivo: {len(df_ksbb.columns)} colunas")
+                            print(f"   Pulando este arquivo (não é compatível com merge por Material)...")
+                            continue
+
+                # Filtrar a coluna Material com não vazias e diferentes de 0
+                antes_filtro = len(df_ksbb)
+                df_ksbb = df_ksbb[
+                    df_ksbb['Material'].notna() & (df_ksbb['Material'] != 0)
+                ]
+                depois_filtro = len(df_ksbb)
+                if antes_filtro != depois_filtro:
+                    print(f"   Removidos {antes_filtro - depois_filtro:,} registros com Material inválido")
 
                 # remover as linhas duplicadas pela coluna Material
-                antes_dup = len(df_ksbb)
+                antes_dedup = len(df_ksbb)
                 df_ksbb = df_ksbb.drop_duplicates(subset=['Material'])
-                depois_dup = len(df_ksbb)
-                if antes_dup != depois_dup:
-                    print(f"   📊 Duplicatas removidas: {antes_dup} -> {depois_dup} registros únicos")
+                depois_dedup = len(df_ksbb)
+                if antes_dedup != depois_dedup:
+                    print(f"   Removidas {antes_dedup - depois_dedup:,} linhas duplicadas")
 
+                # Adicionar informações detalhadas sobre o arquivo processado
+                info_arquivo = {
+                    'arquivo': arquivo,
+                    'registros': len(df_ksbb),
+                    'colunas': len(df_ksbb.columns),
+                    'nomes_colunas': list(df_ksbb.columns),
+                    'tipos_colunas': {col: str(df_ksbb[col].dtype) for col in df_ksbb.columns}
+                }
+                info_arquivos_ksbb.append(info_arquivo)
+                
                 # Adicionar o DataFrame à lista
                 dataframes_ksbb.append(df_ksbb)
-                materiais_unicos = df_ksbb['Material'].nunique() if 'Material' in df_ksbb.columns else 0
-                print(f"   ✅ {arquivo} processado com sucesso! ({len(df_ksbb)} registros, {materiais_unicos} materiais únicos)")
+                print(f"   ✅ {arquivo} processado com sucesso: {len(df_ksbb)} registros, {len(df_ksbb.columns)} colunas")
+                print(f"      Colunas: {', '.join(df_ksbb.columns[:5].tolist())}...")
                 
             except KeyError as e:
                 print(f"   ❌ ERRO DE COLUNA ao processar {arquivo}: {str(e)}")
                 print(f"   Este arquivo tem uma estrutura diferente dos demais.")
-                print(f"   Verifique se o arquivo está no formato correto.")
-                print(f"   Continuando com os próximos arquivos...")
-                continue
-            except pd.errors.ParserError as e:
-                print(f"   ❌ ERRO DE PARSING ao processar {arquivo}: {str(e)[:200]}")
-                print(f"   O arquivo pode estar corrompido ou em formato incorreto.")
+                if 'df_ksbb' in locals():
+                    print(f"   Colunas disponíveis: {list(df_ksbb.columns)[:10]}...")
                 print(f"   Continuando com os próximos arquivos...")
                 continue
             except Exception as e:
-                print(f"   ❌ ERRO INESPERADO ao processar {arquivo}: {str(e)}")
+                print(f"   ❌ Erro ao processar {arquivo}: {str(e)}")
                 print(f"   Tipo de erro: {type(e).__name__}")
                 import traceback
-                print(f"   Detalhes: {traceback.format_exc()[:300]}")
+                print(f"   Detalhes: {traceback.format_exc()[:200]}...")
                 print(f"   Continuando com os próximos arquivos...")
                 continue
 else:
@@ -1164,209 +1246,220 @@ elif len(dataframes_ksbb) == 1:
 else:
     df_ksbb = pd.DataFrame()
 
+# ================== RELATÓRIO COMPARATIVO DOS ARQUIVOS KSBB INDIVIDUAIS ==================
+if len(info_arquivos_ksbb) > 0:
+    print("\n" + "="*80)
+    print("📊 COMPARAÇÃO DETALHADA - ARQUIVOS KSBB INDIVIDUAIS")
+    print("="*80)
+    
+    # Comparar quantidade de colunas
+    quantidades = [info['colunas'] for info in info_arquivos_ksbb]
+    if len(set(quantidades)) == 1:
+        print(f"✅ QUANTIDADE DE COLUNAS: Consistente ({quantidades[0]} colunas em todos os arquivos)")
+    else:
+        print(f"⚠️  QUANTIDADE DE COLUNAS: Diferente entre arquivos")
+        for info in info_arquivos_ksbb:
+            print(f"   - {info['arquivo']}: {info['colunas']} colunas")
+    
+    # Comparar nomes das colunas
+    if len(info_arquivos_ksbb) > 1:
+        primeira_estrutura = info_arquivos_ksbb[0]
+        nomes_referencia = set(primeira_estrutura['nomes_colunas'])
+        nomes_consistentes = True
+        
+        print(f"\n📋 NOMES DAS COLUNAS (após padronização):")
+        print(f"   Arquivo de referência: {primeira_estrutura['arquivo']}")
+        print(f"   Colunas: {sorted(list(nomes_referencia))}")
+        
+        for info in info_arquivos_ksbb[1:]:
+            nomes_atual = set(info['nomes_colunas'])
+            faltando = nomes_referencia - nomes_atual
+            extras = nomes_atual - nomes_referencia
+            
+            if faltando or extras:
+                nomes_consistentes = False
+                print(f"\n   ⚠️  {info['arquivo']}:")
+                if faltando:
+                    print(f"      Colunas faltantes: {list(faltando)}")
+                if extras:
+                    print(f"      Colunas extras: {list(extras)}")
+            else:
+                print(f"   ✅ {info['arquivo']}: Colunas idênticas")
+        
+        if nomes_consistentes:
+            print(f"\n✅ TODOS OS ARQUIVOS KSBB TÊM OS MESMOS NOMES DE COLUNAS!")
+        
+        # Comparar tipos de dados
+        print(f"\n🔬 TIPOS DE DADOS DAS COLUNAS:")
+        tipos_referencia = primeira_estrutura['tipos_colunas']
+        tipos_consistentes = True
+        
+        for info in info_arquivos_ksbb[1:]:
+            tipos_atual = info['tipos_colunas']
+            diferencas = {}
+            
+            colunas_comuns = set(tipos_referencia.keys()) & set(tipos_atual.keys())
+            for col in colunas_comuns:
+                if tipos_referencia[col] != tipos_atual[col]:
+                    diferencas[col] = {
+                        'referencia': tipos_referencia[col],
+                        'atual': tipos_atual[col]
+                    }
+            
+            if diferencas:
+                tipos_consistentes = False
+                print(f"   ⚠️  {info['arquivo']}: Diferenças nos tipos")
+                for col, tipos in list(diferencas.items())[:5]:
+                    print(f"      {col}: {tipos['referencia']} → {tipos['atual']}")
+        
+        if tipos_consistentes:
+            print(f"   ✅ TODOS OS ARQUIVOS KSBB TÊM OS MESMOS TIPOS DE DADOS!")
+    
+    print("="*80 + "\n")
+
 # remover as linhas duplicadas pela coluna Material (se existir)
 if not df_ksbb.empty and 'Material' in df_ksbb.columns:
-    antes_dup_final = len(df_ksbb)
-    materiais_antes = df_ksbb['Material'].nunique()
+    antes_dedup = len(df_ksbb)
     df_ksbb = df_ksbb.drop_duplicates(subset=['Material'])
-    depois_dup_final = len(df_ksbb)
-    materiais_depois = df_ksbb['Material'].nunique()
-    print(f"📊 Remoção de duplicatas final: {antes_dup_final} -> {depois_dup_final} registros")
-    print(f"   Materiais únicos: {materiais_antes} -> {materiais_depois}")
+    depois_dedup = len(df_ksbb)
+    if antes_dedup != depois_dedup:
+        print(f"Removidas {antes_dedup - depois_dedup:,} linhas duplicadas no total KSBB")
 
-# CRÍTICO: Converter coluna Material para string em ambos DataFrames ANTES da normalização
-# Isso garante que materiais sejam tratados como string desde o início, preservando controle total
-if (not df_total.empty and not df_ksbb.empty and 
-    'Material' in df_total.columns and 
-    'Material' in df_ksbb.columns):
+# ================== RELATÓRIO DETALHADO DO DATAFRAME KSBB FINAL ==================
+if not df_ksbb.empty:
+    print("\n" + "="*80)
+    print("📊 RELATÓRIO DETALHADO - ARQUIVOS KSBB PROCESSADOS")
+    print("="*80)
+    print(f"✅ Total de arquivos KSBB processados: {len(dataframes_ksbb)}")
+    print(f"📈 Total de registros únicos (após deduplicação): {len(df_ksbb):,}")
+    print(f"📋 Quantidade de colunas: {len(df_ksbb.columns)}")
+    print(f"\n📝 COLUNAS APÓS PADRONIZAÇÃO:")
+    for i, col in enumerate(df_ksbb.columns, 1):
+        tipo = df_ksbb[col].dtype
+        valores_unicos = df_ksbb[col].nunique()
+        print(f"   {i:2d}. {col:30s} | Tipo: {str(tipo):15s} | Valores únicos: {valores_unicos:,}")
     
-    print(f"🔧 Normalizando tipos da coluna Material antes do merge...")
-    
-    # Salvar tipos originais para debug
-    tipo_material_total_antes = df_total['Material'].dtype
-    tipo_material_ksbb_antes = df_ksbb['Material'].dtype
-    print(f"   Tipo Material em df_total: {tipo_material_total_antes}")
-    print(f"   Tipo Material em df_ksbb: {tipo_material_ksbb_antes}")
-    
-    # PASSO 1: Converter para string PRIMEIRO (antes de normalizar)
-    # Isso preserva o formato original e permite normalização controlada
-    if 'Material' in df_total.columns:
-        df_total['Material'] = df_total['Material'].astype(str)
-    if 'Material' in df_ksbb.columns:
-        df_ksbb['Material'] = df_ksbb['Material'].astype(str)
-    print(f"   ✅ Colunas Material convertidas para string")
-    
-    # Função auxiliar para normalizar Material de forma robusta
-    def normalizar_material(valor):
-        """Normaliza valor de Material para garantir match mesmo com variações
-        
-        ESTRATÉGIA: Tratar como STRING desde o início para preservar controle total.
-        Remove zeros à esquerda de forma controlada apenas se for string numérica.
-        Exemplo: "067099404011727" e "67099404011727" ambos viram "67099404011727"
-        """
-        if pd.isna(valor) or valor == '' or valor == 'nan':
-            return None
-        
-        # PASSO 1: Converter para string PRIMEIRO (preserva formato original)
-        valor_str = str(valor).strip()
-        
-        # PASSO 2: Remover espaços invisíveis e caracteres especiais não imprimíveis
-        valor_str = ''.join(char for char in valor_str if char.isprintable() or char.isspace())
-        valor_str = valor_str.strip()
-        
-        # PASSO 3: Se for string numérica (apenas dígitos), remover zeros à esquerda
-        # Isso garante match entre "067099404011727" e "67099404011727"
-        if valor_str.isdigit():
-            # Remover zeros à esquerda
-            valor_str = valor_str.lstrip('0')
-            # Se ficou vazio (era só zeros), retornar "0"
-            if not valor_str:
-                valor_str = '0'
+    # Verificar colunas críticas para merge
+    print(f"\n🔍 VERIFICAÇÃO DE COLUNAS CRÍTICAS PARA MERGE:")
+    colunas_criticas = ['Material', 'Texto breve material']
+    for col_critica in colunas_criticas:
+        if col_critica in df_ksbb.columns:
+            nao_nulos = df_ksbb[col_critica].notna().sum()
+            nulos = df_ksbb[col_critica].isna().sum()
+            print(f"   ✅ {col_critica}:")
+            print(f"      - Valores não nulos: {nao_nulos:,} ({nao_nulos/len(df_ksbb)*100:.1f}%)")
+            print(f"      - Valores nulos: {nulos:,} ({nulos/len(df_ksbb)*100:.1f}%)")
         else:
-            # PASSO 4: Se não for apenas dígitos, pode ter decimais ou notação científica
-            # Tentar normalizar removendo .0 e notação científica, mas mantendo como string
-            try:
-                # Verificar se é um número válido (pode ter ponto decimal, notação científica, etc)
-                valor_num = pd.to_numeric(valor_str, errors='raise')
-                # Se for essencialmente inteiro, converter para string sem decimais
-                if abs(valor_num - int(valor_num)) < 1e-10:
-                    valor_str = str(int(valor_num))  # Remove .0 e zeros à esquerda
-                else:
-                    # Para decimais, remover zeros à direita e ponto se necessário
-                    valor_str = str(valor_num).rstrip('0').rstrip('.')
-            except (ValueError, TypeError, OverflowError):
-                # Se não for número válido, manter como string original (já normalizada)
-                pass
-        
-        # PASSO 5: Validação final
-        if not valor_str or valor_str == 'nan' or valor_str.lower() == 'none':
-            return None
-        
-        return valor_str
+            print(f"   ❌ {col_critica}: COLUNA NÃO ENCONTRADA!")
+            # Tentar encontrar coluna similar
+            colunas_similares = [col for col in df_ksbb.columns 
+                               if any(palavra in str(col).lower() for palavra in col_critica.lower().split())]
+            if colunas_similares:
+                print(f"      Colunas similares encontradas: {colunas_similares}")
     
-    # Aplicar normalização em df_total
-    df_total['Material'] = df_total['Material'].apply(normalizar_material)
-    
-    # Aplicar normalização em df_ksbb
-    df_ksbb['Material'] = df_ksbb['Material'].apply(normalizar_material)
-    
-    # Remover valores None/vazios após normalização
-    df_total = df_total[df_total['Material'].notna() & (df_total['Material'] != '') & (df_total['Material'] != 'nan')]
-    df_ksbb = df_ksbb[df_ksbb['Material'].notna() & (df_ksbb['Material'] != '') & (df_ksbb['Material'] != 'nan')]
-    
-    print(f"✅ Colunas Material normalizadas para string")
-    print(f"   Registros em df_total após normalização: {len(df_total)}")
-    print(f"   Registros em df_ksbb após normalização: {len(df_ksbb)}")
-    
-    # Remover duplicatas novamente após normalização (pode ter criado duplicatas se havia espaços diferentes)
-    if not df_ksbb.empty:
-        df_ksbb = df_ksbb.drop_duplicates(subset=['Material'])
-        print(f"   Registros únicos em df_ksbb após remoção de duplicatas: {len(df_ksbb)}")
-
-# merge o df_total com df_ksbb_total pela coluna Material trazendo a coluna de texto breve material do df_ksbb_total
-# CRÍTICO: Unificar nomes das colunas antes do merge
-# Se "Texto breve material" não existe mas "Texto" existe, renomear "Texto" para "Texto breve material"
-# (o nome pode ter sido truncado no arquivo)
-if 'Texto breve material' not in df_ksbb.columns and 'Texto' in df_ksbb.columns:
-    df_ksbb = df_ksbb.rename(columns={'Texto': 'Texto breve material'})
-    print(f"✅ Coluna 'Texto' renomeada para 'Texto breve material' (nome estava truncado)")
-
-if (not df_total.empty and not df_ksbb.empty and 
-    'Material' in df_total.columns and 
-    'Material' in df_ksbb.columns and
-    'Texto breve material' in df_ksbb.columns):
-    
-    # Contar quantos materiais de df_total existem em df_ksbb (para diagnóstico)
-    materiais_total = set(df_total['Material'].unique())
-    materiais_ksbb = set(df_ksbb['Material'].unique())
-    materiais_em_comum = materiais_total.intersection(materiais_ksbb)
-    print(f"📊 Diagnóstico de match:")
-    print(f"   Materiais únicos em df_total: {len(materiais_total)}")
-    print(f"   Materiais únicos em df_ksbb: {len(materiais_ksbb)}")
-    print(f"   Materiais que farão match: {len(materiais_em_comum)}")
-    
-    # Diagnóstico adicional: verificar se há materiais que deveriam fazer match mas não fazem
-    # (por exemplo, devido a zeros à esquerda)
-    if len(materiais_em_comum) < min(len(materiais_total), len(materiais_ksbb)) * 0.5:
-        print(f"   ⚠️  AVISO: Poucos matches encontrados ({len(materiais_em_comum)}/{min(len(materiais_total), len(materiais_ksbb))})")
-        print(f"   Isso pode indicar problema de normalização (ex: zeros à esquerda)")
-        # Mostrar alguns exemplos de materiais que não fizeram match
-        materiais_sem_match = materiais_total - materiais_em_comum
-        if len(materiais_sem_match) > 0:
-            exemplos = list(materiais_sem_match)[:5]
-            print(f"   Exemplos de materiais em df_total sem match: {exemplos}")
-    
-    df_total = pd.merge(
-        df_total,
-        df_ksbb[['Material', 'Texto breve material']],
-        on='Material',
-        how='left',
-    )
-    
-    # Contar quantos registros receberam descrição após o merge
-    registros_com_descricao = df_total['Texto breve material'].notna().sum()
-    print(f"✅ Merge com dados KSBB concluído: {len(df_total)} registros")
-    print(f"   Registros com 'Texto breve material' preenchido: {registros_com_descricao} ({registros_com_descricao/len(df_total)*100:.1f}%)")
-    
-    # Diagnóstico específico: verificar materiais conhecidos que deveriam ter match
-    materiais_teste = [
-        '67099404006903', '67099404011727', '67099404006102', '67099404008366',
-        '67099404012848', '67099404011431', '67099489000693', '67099489000713'
-    ]
-    materiais_teste_normalizados = [normalizar_material(m) for m in materiais_teste]
-    materiais_teste_encontrados = 0
-    for mat_norm in materiais_teste_normalizados:
-        if mat_norm and mat_norm in materiais_em_comum:
-            materiais_teste_encontrados += 1
-            # Verificar quantos registros receberam descrição
-            registros_com_desc = len(df_total[(df_total['Material'] == mat_norm) & 
-                                             (df_total['Texto breve material'].notna())])
-            total_registros = len(df_total[df_total['Material'] == mat_norm])
-            if registros_com_desc < total_registros:
-                print(f"   ⚠️  Material {mat_norm}: {registros_com_desc}/{total_registros} registros com descrição")
-    
-    if materiais_teste_encontrados == len([m for m in materiais_teste_normalizados if m]):
-        print(f"   ✅ Todos os materiais de teste foram encontrados e fizeram match!")
+    # Comparar com estrutura esperada
+    print(f"\n📊 COMPARAÇÃO COM ESTRUTURA ESPERADA:")
+    colunas_esperadas_ksbb = ['Material', 'Texto breve material']
+    colunas_faltantes = [col for col in colunas_esperadas_ksbb if col not in df_ksbb.columns]
+    if colunas_faltantes:
+        print(f"   ⚠️  Colunas faltantes: {colunas_faltantes}")
     else:
-        print(f"   ⚠️  Apenas {materiais_teste_encontrados}/{len([m for m in materiais_teste_normalizados if m])} materiais de teste fizeram match")
-elif not df_ksbb.empty:
-    print(f"⚠️  AVISO: Não foi possível fazer merge com dados KSBB.")
-    if 'Material' not in df_total.columns:
-        print(f"   - Coluna 'Material' não encontrada em df_total")
-    if 'Material' not in df_ksbb.columns:
-        print(f"   - Coluna 'Material' não encontrada em df_ksbb")
-    if 'Texto breve material' not in df_ksbb.columns:
-        print(f"   - Coluna 'Texto breve material' não encontrada em df_ksbb")
-        print(f"   Colunas disponíveis em df_ksbb: {list(df_ksbb.columns)}")
-        # Verificar se há coluna similar
-        colunas_similares = [col for col in df_ksbb.columns if 'texto' in str(col).lower() or 'breve' in str(col).lower() or 'descrição' in str(col).lower() or 'descricao' in str(col).lower()]
-        if colunas_similares:
-            print(f"   🔍 Colunas similares encontradas: {colunas_similares}")
-            print(f"   💡 SUGESTÃO: A coluna pode ter um nome diferente. Verifique se uma dessas colunas contém a descrição do material.")
-
-# renomear a coluna Texto breve material para Descrição Material (se existir)
-if 'Texto breve material' in df_total.columns:
-    df_total = df_total.rename(
-        columns={'Texto breve material': 'Descrição Material'}
-    )
-    print("✅ Coluna 'Texto breve material' renomeada para 'Descrição Material'")
+        print(f"   ✅ Todas as colunas esperadas estão presentes")
+    
+    print("="*80 + "\n")
 else:
-    print("⚠️  AVISO: Coluna 'Texto breve material' não encontrada após merge")
+    print("\n⚠️  AVISO: Nenhum arquivo KSBB foi processado ou DataFrame está vazio")
+
+# merge o df_total com df_ksbb pela coluna Material trazendo a coluna de texto breve material do df_ksbb
+# LÓGICA RESTAURADA DO ARQUIVO OFICIAL (igual ao que funciona)
+if not df_total.empty and not df_ksbb.empty and 'Material' in df_total.columns and 'Material' in df_ksbb.columns:
+    # Verificar se a coluna 'Texto breve material' existe no KSBB
+    if 'Texto breve material' in df_ksbb.columns:
+        print(f"   ✅ Coluna 'Texto breve material' encontrada no KSBB")
+        print(f"   🔗 Fazendo merge: df_total['Material'] ← df_ksbb[['Material', 'Texto breve material']]")
+        
+        # Fazer o merge DIRETO sem renomear (como no arquivo oficial)
+        df_total = pd.merge(
+            df_total,
+            df_ksbb[['Material', 'Texto breve material']],
+            on='Material',
+            how='left',
+        )
+        
+        print(f"✅ Merge com KSBB concluído: {len(df_total):,} registros totais")
+    else:
+        print("⚠️  AVISO: Coluna 'Texto breve material' não encontrada no df_ksbb")
+        print(f"   Colunas disponíveis no df_ksbb: {list(df_ksbb.columns)}")
+        print(f"   Pulando merge de descrição de material...")
+elif not df_total.empty:
+    if df_ksbb.empty:
+        print("⚠️  AVISO: DataFrame KSBB está vazio. Pulando merge...")
+    elif 'Material' not in df_total.columns:
+        print("⚠️  AVISO: Coluna 'Material' não encontrada no df_total. Pulando merge...")
+    elif 'Material' not in df_ksbb.columns:
+        print("⚠️  AVISO: Coluna 'Material' não encontrada no df_ksbb. Pulando merge...")
+
+# renomear a coluna Texto breve material para Descrição Material (como no arquivo oficial)
+# CORREÇÃO: O merge criou colunas _x e _y porque havia duplicação
+print("\n🔧 Consolidando colunas 'Texto breve material'...")
+print(f"   Colunas relacionadas: {[col for col in df_total.columns if 'texto' in col.lower() or ('material' in col.lower() and 'descrição' not in col.lower())]}")
+
+# Se existem colunas _x e _y, consolidar
+if 'Texto breve material_x' in df_total.columns and 'Texto breve material_y' in df_total.columns:
+    print("   🔄 Detectadas colunas duplicadas (_x e _y) - consolidando...")
+    # _x é do KE5Z, _y é do KSBB (merge)
+    # Priorizar _y (KSBB) quando não for nulo
+    df_total['Descrição Material'] = df_total.apply(
+        lambda row: (
+            row['Texto breve material_y'] if pd.notnull(row['Texto breve material_y']) and str(row['Texto breve material_y']).strip() != ''
+            else row['Texto breve material_x']
+        ),
+        axis=1
+    )
+    
+    # Remover colunas temporárias
+    df_total.drop(columns=['Texto breve material_x', 'Texto breve material_y'], inplace=True)
+    
+    de_ksbb = df_total['Descrição Material'].notna().sum()
+    print(f"   ✅ Colunas consolidadas em 'Descrição Material': {de_ksbb:,} registros preenchidos")
+    
+elif 'Texto breve material' in df_total.columns:
+    df_total = df_total.rename(columns={'Texto breve material': 'Descrição Material'})
+    print(f"   ✅ Coluna renomeada: 'Texto breve material' → 'Descrição Material'")
+else:
+    print(f"   ⚠️  Nenhuma coluna 'Texto breve material' encontrada!")
 
 # exibir as 10 primeiras linhas do df_total e as colunas de Material, Descrição Material
 if 'Material' in df_total.columns and 'Descrição Material' in df_total.columns:
+    print("\nAmostra (Material, Descrição Material):")
     print(df_total[['Material', 'Descrição Material']].head(10))
 
-# se a descrição do material nao for nula substituir o valor da coluna Texto pelo valor da Descrição Material
-if 'Texto' in df_total.columns and 'Descrição Material' in df_total.columns:
-    df_total['Texto'] = df_total.apply(
-        lambda row: (
-            row['Descrição Material']
-            if pd.notnull(row['Descrição Material'])
-            else row['Texto']
-        ),
-        axis=1,
-    )
+# se a descrição do material nao for nula substituir o valor da coluna Texto pelo valor da Descrição Material (como no arquivo oficial)
+if 'Descrição Material' in df_total.columns:
+    if 'Texto' in df_total.columns:
+        # Atualizar coluna Texto existente com dados de Descrição Material
+        print("\n🔧 Atualizando coluna 'Texto' com dados de 'Descrição Material'...")
+        antes = (df_total['Texto'].notna() & (df_total['Texto'] != '')).sum()
+        
+        df_total['Texto'] = df_total.apply(
+            lambda row: (
+                row['Descrição Material']
+                if pd.notnull(row['Descrição Material'])
+                else row['Texto']
+            ),
+            axis=1,
+        )
+        
+        depois = (df_total['Texto'].notna() & (df_total['Texto'] != '')).sum()
+        print(f"   ✅ Coluna 'Texto' atualizada: {antes:,} → {depois:,} registros preenchidos")
+    else:
+        # Criar coluna Texto a partir de Descrição Material
+        print("\n🔧 Criando coluna 'Texto' a partir de 'Descrição Material'...")
+        df_total['Texto'] = df_total['Descrição Material']
+        preenchidos = (df_total['Texto'].notna() & (df_total['Texto'] != '')).sum()
+        print(f"   ✅ Coluna 'Texto' criada: {preenchidos:,} registros preenchidos")
+else:
+    print("\n⚠️  AVISO: Coluna 'Descrição Material' não encontrada - coluna 'Texto' não será atualizada")
 
 # imprimir os valores totais somarizado por periodo
 print(df_total.groupby('Período')['Valor'].sum())
@@ -1435,20 +1528,23 @@ for col in numeric_columns:
         df_total[col] = pd.to_numeric(df_total[col], errors='coerce')
 
 # Garantir que colunas de texto sejam strings
-text_columns = ['Nº conta', 'Centro cst', 'Texto', 'Fornecedor', 'Fornec.', 'Material', 
-                'Descrição Material', 'Type 05', 'Type 06', 'Type 07', 'USI', 'Oficina',
+print("\n🔧 Convertendo colunas de texto para string...")
+text_columns = ['Nº conta', 'Centro cst', 'Fornec.', 'Type 05', 'Type 06', 'Type 07', 'USI', 'Oficina',
                 'Doc.compra', 'Usuário', 'Tipo', 'Cliente', 'Dt.lçto.', 'Imobilizado']
+
 for col in text_columns:
     if col in df_total.columns:
         df_total[col] = df_total[col].astype(str)
+        valores_preenchidos = (df_total[col] != '').sum()
+        if valores_preenchidos > 0:
+            print(f"   ✅ {col}: {valores_preenchidos:,} valores preenchidos")
 
-# Garantir que TODAS as colunas object sejam strings (fallback)
-for col in df_total.columns:
-    if df_total[col].dtype == 'object':
-        df_total[col] = df_total[col].astype(str)
+# NÃO converter 'Texto', 'Fornecedor', 'Material', 'Descrição Material' para evitar perda de dados
+# Essas colunas já foram processadas corretamente antes
 
-# Substituir valores NaN por None para compatibilidade com PyArrow
-df_total = df_total.where(pd.notnull(df_total), None)
+# Substituir valores vazios por None para compatibilidade com PyArrow (apenas para Parquet)
+df_total_parquet = df_total.copy()
+df_total_parquet = df_total_parquet.where(pd.notnull(df_total_parquet), None)
 
 # Converter coluna Dt.lçto. para formato DD/MM/AAAA
 if 'Dt.lçto.' in df_total.columns:
@@ -1463,25 +1559,55 @@ print(df_total.dtypes)
 
 # %% Salvar arquivo para extração PBI
 # ler arquivo fornecedores e desconsiderar as 3 primeiras linhas
+print("\n🔧 Processando dados de fornecedores...")
 arquivo_fornecedores = ARQ_FORNECEDORES
 df_fornecedores = pd.read_excel(arquivo_fornecedores, skiprows=3)
+print(f"   📊 Fornecedores carregados: {len(df_fornecedores)} registros")
+
 # remover linhas duplicadas pela coluna Fornecedor
 df_fornecedores = df_fornecedores.drop_duplicates(subset=['Fornecedor'])
+print(f"   📊 Fornecedores únicos: {len(df_fornecedores)} registros")
+
 # mudar o nome da coluna Fornecedor para Fornec.
 df_fornecedores.rename(columns={'Fornecedor': 'Fornec.'}, inplace=True)
 
 # mudar a coluna fornec. para string
 df_fornecedores['Fornec.'] = df_fornecedores['Fornec.'].astype(str)
 
+# Verificar se coluna 'Fornec.' existe no df_total
+if 'Fornec.' not in df_total.columns:
+    print("   ⚠️  AVISO: Coluna 'Fornec.' não encontrada no df_total!")
+    print(f"   Colunas disponíveis: {[col for col in df_total.columns if 'fornec' in col.lower()]}")
+    # Tentar encontrar coluna similar
+    for col in df_total.columns:
+        if 'fornec' in col.lower():
+            print(f"   🔄 Usando coluna '{col}' como 'Fornec.'")
+            df_total.rename(columns={col: 'Fornec.'}, inplace=True)
+            break
+
 # merge o df_total com df_fornecedores pela coluna Fornec. retornando a coluna Fornecedor
-df_total = pd.merge(
-    df_total,
-    df_fornecedores[['Fornec.', 'Nome do fornecedor']],
-    on='Fornec.',
-    how='left',
-)
-# mudar o nome da coluna Nome do fornecedor para Fornecedor
-df_total.rename(columns={'Nome do fornecedor': 'Fornecedor'}, inplace=True)
+if 'Fornec.' in df_total.columns:
+    print(f"   🔗 Fazendo merge: df_total['Fornec.'] ← df_fornecedores[['Fornec.', 'Nome do fornecedor']]")
+    
+    # Converter Fornec. para string antes do merge
+    df_total['Fornec.'] = df_total['Fornec.'].astype(str)
+    
+    df_total = pd.merge(
+        df_total,
+        df_fornecedores[['Fornec.', 'Nome do fornecedor']],
+        on='Fornec.',
+        how='left',
+    )
+    # mudar o nome da coluna Nome do fornecedor para Fornecedor
+    df_total.rename(columns={'Nome do fornecedor': 'Fornecedor'}, inplace=True)
+    
+    # Verificar resultado do merge
+    fornecedores_encontrados = df_total['Fornecedor'].notna().sum()
+    print(f"   ✅ Merge de fornecedores concluído: {fornecedores_encontrados:,} registros com fornecedor identificado")
+else:
+    print("   ❌ Não foi possível fazer merge de fornecedores (coluna 'Fornec.' não encontrada)")
+    # Criar coluna vazia
+    df_total['Fornecedor'] = ''
 
 
 
@@ -1499,8 +1625,27 @@ df_hist_prov['20carac'] = df_hist_prov['20carac'].str.strip()
 # remover linhas duplicadas pela coluna '20carac'
 df_hist_prov = df_hist_prov.drop_duplicates(subset=['20carac'])
 
-# criar uma coluna no df_total chamada '20carac' (primeiros 20 caracteres do Fornec.) 
-df_total['20carac'] = df_total['Texto'].astype(str).str[:20]
+# criar uma coluna no df_total chamada '20carac' (primeiros 20 caracteres do Texto) 
+# CORREÇÃO: Verificar qual coluna usar (Texto, Descrição Material, ou Texto breve material)
+coluna_para_20carac = None
+if 'Texto' in df_total.columns:
+    coluna_para_20carac = 'Texto'
+elif 'Descrição Material' in df_total.columns:
+    coluna_para_20carac = 'Descrição Material'
+elif 'Texto breve material' in df_total.columns:
+    coluna_para_20carac = 'Texto breve material'
+else:
+    # Fallback: usar primeira coluna de texto disponível
+    colunas_texto = [col for col in df_total.columns if df_total[col].dtype == 'object']
+    if colunas_texto:
+        coluna_para_20carac = colunas_texto[0]
+        print(f"⚠️  AVISO: Usando coluna '{coluna_para_20carac}' para criar '20carac'")
+
+if coluna_para_20carac:
+    df_total['20carac'] = df_total[coluna_para_20carac].astype(str).str[:20]
+else:
+    print("⚠️  ERRO: Nenhuma coluna de texto encontrada para criar '20carac'")
+    df_total['20carac'] = ''
 # Remover os espaços da coluna '20carac'
 df_total['20carac'] = df_total['20carac'].str.strip()
 
@@ -1540,7 +1685,7 @@ print(f"Pasta parquet criada: {pasta_parquet}")
 # OTIMIZAÇÃO DE MEMÓRIA: Separar dados por USI
 print("\n=== SEPARANDO ARQUIVOS POR USI PARA OTIMIZAÇÃO ===")
 
-# Separar dados Others vs resto
+# Separar dados Others vs resto (usar df_total com strings vazias para Excel)
 df_others = df_total[df_total['USI'] == 'Others'].copy()
 df_main = df_total[df_total['USI'] != 'Others'].copy()
 
@@ -1548,25 +1693,33 @@ print(f"Total de registros: {len(df_total):,}")
 print(f"Registros principais (sem Others): {len(df_main):,}")
 print(f"Registros Others: {len(df_others):,}")
 
+# Criar versão para Parquet (com None ao invés de strings vazias)
+df_total_parquet = df_total.copy()
+df_total_parquet = df_total_parquet.replace('', None)
+
+# Separar dados Others vs resto para Parquet
+df_main_parquet = df_total_parquet[df_total_parquet['USI'] != 'Others'].copy()
+df_others_parquet = df_total_parquet[df_total_parquet['USI'] == 'Others'].copy()
+
 # Salvar arquivo principal (sem Others) - para uso no dashboard
 caminho_main = os.path.join(pasta_parquet, 'KE5Z_main.parquet')
-df_main.to_parquet(caminho_main, index=False)
+df_main_parquet.to_parquet(caminho_main, index=False)
 print(f"Arquivo principal salvo: {caminho_main}")
 
 # Salvar arquivo Others separadamente
-if len(df_others) > 0:
+if len(df_others_parquet) > 0:
     caminho_others = os.path.join(pasta_parquet, 'KE5Z_others.parquet')
-    df_others.to_parquet(caminho_others, index=False)
+    df_others_parquet.to_parquet(caminho_others, index=False)
     print(f"Arquivo Others salvo: {caminho_others}")
 else:
     print("Nenhum registro Others encontrado")
 
 # Manter arquivo completo para compatibilidade
 caminho_saida_atualizado = os.path.join(pasta_parquet, 'KE5Z.parquet')
-df_total.to_parquet(caminho_saida_atualizado, index=False)
+df_total_parquet.to_parquet(caminho_saida_atualizado, index=False)
 print(f"Arquivo completo salvo: {caminho_saida_atualizado}")
 
-# gerar um arquivo Excel do df_total atualizado com 10k linhas
+# gerar um arquivo Excel do df_total atualizado com 10k linhas (usar df_total, não df_total_parquet)
 caminho_saida_excel = os.path.join(pasta_parquet, 'KE5Z.xlsx')
 df_total.head(10000).to_excel(caminho_saida_excel, index=False)
 print(f"Arquivo Excel salvo: {caminho_saida_excel}")
@@ -1664,10 +1817,49 @@ else:
 # %%
 # Salvar arquivos Excel na pasta local do projeto
 
-# organizar a ordem das colunas em Período	Nºconta	Centrocst	doc.ref.	Dt.lçto.	Cen.lucro	 Valor 	QTD	Type 05	Type 06	Account	USI	Oficina	Doc.compra	Texto breve	Fornecedor	Material	DESCRIÇÃO SAPIENS	Usuário	Cofor	Tipo
+# organizar a ordem das colunas (CONFIGURAÇÃO ORIGINAL RESTAURADA)
+print("\n🔧 Preparando colunas para Excel...")
+
+# PASSO 1: Consolidar coluna 'Texto' ANTES de filtrar colunas
+# Se 'Descrição Material' existe (do merge KSBB), usar ela para criar/atualizar 'Texto'
+if 'Descrição Material' in df_total.columns:
+    if 'Texto' in df_total.columns:
+        # Se ambas existem, priorizar 'Descrição Material' quando não for vazia
+        df_total['Texto'] = df_total.apply(
+            lambda row: row['Descrição Material'] if pd.notnull(row['Descrição Material']) and str(row['Descrição Material']).strip() != ''
+            else row['Texto'],
+            axis=1
+        )
+        print("   ✅ Coluna 'Texto' atualizada com dados de 'Descrição Material' (do KSBB)")
+    else:
+        # Se só 'Descrição Material' existe, criar 'Texto' a partir dela
+        df_total['Texto'] = df_total['Descrição Material']
+        print("   ✅ Coluna 'Texto' criada a partir de 'Descrição Material' (do KSBB)")
+elif 'Texto breve material' in df_total.columns and 'Texto' not in df_total.columns:
+    df_total['Texto'] = df_total['Texto breve material']
+    print("   ✅ Coluna 'Texto' criada a partir de 'Texto breve material'")
+elif 'Texto' not in df_total.columns:
+    df_total['Texto'] = ''
+    print("   ⚠️  Coluna 'Texto' criada vazia (nenhuma fonte disponível)")
+
+# Garantir que 'Fornecedor' existe
+if 'Fornecedor' not in df_total.columns:
+    df_total['Fornecedor'] = ''
+    print("   ⚠️  Coluna 'Fornecedor' criada vazia")
+
+# Verificar dados antes de filtrar
+texto_preenchido = (df_total['Texto'].notna() & (df_total['Texto'] != '')).sum()
+fornecedor_preenchido = (df_total['Fornecedor'].notna() & (df_total['Fornecedor'] != '')).sum()
+material_preenchido = (df_total['Material'].notna() & (df_total['Material'] != '')).sum() if 'Material' in df_total.columns else 0
+
+print(f"   📊 Texto preenchido: {texto_preenchido:,} / {len(df_total):,} ({texto_preenchido/len(df_total)*100:.1f}%)")
+print(f"   📊 Fornecedor preenchido: {fornecedor_preenchido:,} / {len(df_total):,} ({fornecedor_preenchido/len(df_total)*100:.1f}%)")
+print(f"   📊 Material preenchido: {material_preenchido:,} / {len(df_total):,} ({material_preenchido/len(df_total)*100:.1f}%)")
+
+# PASSO 2: FILTRAR E ORGANIZAR COLUNAS (ORDEM ORIGINAL)
 df_total = df_total[['Período', 'Nº conta', 'Centro cst', 'doc.ref', 'Dt.lçto.', 'Valor', 'Qtd.', 'Type 05', 'Type 06', 'Type 07', 'USI', 'Oficina', 'Doc.compra', 'Texto', 'Fornecedor', 'Material', 'Usuário', 'Fornec.', 'Tipo']]
 
-# mudar os nomes das colunas para Nºconta, Centrocst, Nºdoc.ref., QTD, Texto
+# mudar os nomes das colunas para Nºconta, Centrocst, Nºdoc.ref., QTD, Texto breve
 df_total.rename(columns={'Texto': 'Texto breve'}, inplace=True)
 df_total.rename(columns={'Qtd.': 'QTD'}, inplace=True)
 df_total.rename(columns={'Nº conta': 'Nºconta', 'Centro cst': 'Centrocst', 'doc.ref': 'Nºdoc.ref.'}, inplace=True)
@@ -1676,7 +1868,7 @@ df_total.rename(columns={'Type 07': 'Account'}, inplace=True)
 # Mudar o nome da coluna 'Periodo' para Mes
 df_total.rename(columns={'Período': 'Mes'}, inplace=True)
 
-# Criar uma coluna com os meses minusculos baseados na coluna 'Mes', sendo mes = 1 = janeiro, mes = 2 = fevereiro e assim sucessivamente
+# Criar uma coluna com os meses por extenso baseados na coluna 'Mes'
 # a coluna Mes deve ser string
 df_total['Período'] = df_total['Mes'].astype(str)
 df_total['Período'] = df_total['Mes'].apply(lambda x: 'janeiro' if x == 1 else 'fevereiro' if x == 2 else 'março' if x == 3 else 'abril' if x == 4 else 'maio' if x == 5 else 'junho' if x == 6 else 'julho' if x == 7 else 'agosto' if x == 8 else 'setembro' if x == 9 else 'outubro' if x == 10 else 'novembro' if x == 11 else 'dezembro')
@@ -1684,6 +1876,9 @@ df_total['Período'] = df_total['Mes'].apply(lambda x: 'janeiro' if x == 1 else 
 # Trazer coluna 'mes' para a primeira posição e a coluna 'Período' para a segunda posição do DataFrame
 colunas = ['Mes', 'Período'] + [col for col in df_total.columns if col != 'Mes' and col != 'Período']
 df_total = df_total[colunas]
+
+print(f"   ✅ Colunas organizadas: {len(df_total.columns)} colunas")
+print(f"   📊 Ordem: {list(df_total.columns)}")
 
 
 
@@ -1728,7 +1923,9 @@ usis_veiculos_existentes = [usi for usi in usis_veiculos if usi in usis_disponiv
 
 if usis_veiculos_existentes:
     caminho_veiculos = os.path.join(pasta_arquivos, 'KE5Z_veiculos.xlsx')
-    df_veiculos = df_total_excel[df_total_excel['USI'].isin(usis_veiculos_existentes)]
+    df_veiculos = df_total_excel[df_total_excel['USI'].isin(usis_veiculos_existentes)].copy()
+    
+    # Salvar diretamente sem conversões adicionais (já foram feitas antes)
     df_veiculos.to_excel(caminho_veiculos, index=False)
     print(f"Arquivo Excel Veículos salvo: {caminho_veiculos} ({len(df_veiculos)} registros)")
 else:
@@ -1737,7 +1934,9 @@ else:
 # Salvar arquivo Excel com filtro de USI 'PWT' (se existir)
 if 'PWT' in usis_disponiveis:
     caminho_pwt = os.path.join(pasta_arquivos, 'KE5Z_pwt.xlsx')
-    df_pwt = df_total_excel[df_total_excel['USI'] == 'PWT']
+    df_pwt = df_total_excel[df_total_excel['USI'] == 'PWT'].copy()
+    
+    # Salvar diretamente sem conversões adicionais
     df_pwt.to_excel(caminho_pwt, index=False)
     print(f"Arquivo Excel PWT salvo: {caminho_pwt} ({len(df_pwt)} registros)")
 else:
@@ -1751,8 +1950,10 @@ if 'USI' in df_total_excel.columns:
             # Normalizar nome da USI para evitar duplicação
             nome_arquivo = usi.replace(" ", "_").replace("/", "_").replace("ç", "c").replace("ã", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
             caminho_usi = os.path.join(pasta_arquivos, f'KE5Z_{nome_arquivo}.xlsx')
-            df_usi = df_total_excel[df_total_excel['USI'] == usi]
+            df_usi = df_total_excel[df_total_excel['USI'] == usi].copy()
+            
             if len(df_usi) > 0:
+                # Salvar diretamente sem conversões adicionais
                 df_usi.to_excel(caminho_usi, index=False)
                 print(f"Arquivo Excel {usi} salvo: {caminho_usi} ({len(df_usi)} registros)")
 
@@ -1771,6 +1972,30 @@ print("   • Arquivos Excel: pasta arquivos/")
 print("")
 print("💡 Dica: Pressione Win+R, cole o caminho e pressione Enter para abrir a pasta!")
 print("="*80)
+
+# Salvar data/hora da última extração
+try:
+    # Importar função de salvar última extração
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        from auth_simple import salvar_ultima_extracao
+        salvar_ultima_extracao()
+        print("✅ Data da última extração salva com sucesso!")
+    except ImportError:
+        # Se não conseguir importar, salvar manualmente
+        import json
+        from datetime import datetime
+        ultima_extracao_file = os.path.join(get_output_path(), "ultima_extracao.json")
+        agora = datetime.now()
+        dados = {
+            "data_hora": agora.isoformat(),
+            "data_hora_formatada": agora.strftime("%d/%m/%Y %H:%M:%S")
+        }
+        with open(ultima_extracao_file, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, indent=2, ensure_ascii=False)
+        print("✅ Data da última extração salva com sucesso!")
+except Exception as e:
+    print(f"⚠️  Não foi possível salvar data da última extração: {e}")
 
 # Tentar abrir a pasta automaticamente no Windows
 try:

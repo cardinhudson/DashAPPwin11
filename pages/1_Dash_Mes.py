@@ -13,7 +13,8 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
-                         eh_administrador, verificar_status_aprovado, is_modo_cloud, get_modo_operacao)
+                         eh_administrador, verificar_status_aprovado, is_modo_cloud, get_modo_operacao,
+                         exibir_info_ultima_extracao, exibir_rodape_versao)
 
 # Detectar se está rodando no executável PyInstaller
 def get_base_path():
@@ -305,6 +306,9 @@ except Exception as e:
 
 # Filtrar o df_total com a coluna 'USI' que não seja nula (incluindo 'Others')
 df_total = df_total[df_total['USI'].notna()]
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
 
 # Header com informações do usuário e botão de logout
 col1, col2, col3 = st.columns([2, 1, 1])
@@ -813,3 +817,6 @@ with col2:
 with col3:
     if 'Valor' in df_mes.columns:
         st.info(f"💰 **Valor Total**: R$ {df_mes['Valor'].sum():,.2f}")
+
+# Rodapé com versão
+exibir_rodape_versao()

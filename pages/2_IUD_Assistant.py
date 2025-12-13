@@ -70,7 +70,8 @@ st.set_page_config(
 
 # Verificar autenticação
 from auth_simple import (verificar_autenticacao, verificar_status_aprovado, exibir_header_usuario,
-                         is_modo_cloud, get_modo_operacao)
+                         is_modo_cloud, get_modo_operacao,
+                         exibir_info_ultima_extracao, exibir_rodape_versao)
 verificar_autenticacao()
 
 # Indicador de navegação no topo
@@ -94,6 +95,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("---")
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
 
 # Exibir header do usuário
 exibir_header_usuario()
@@ -960,3 +964,6 @@ st.sidebar.success("✅ IUD Assistant Ativo")
 st.sidebar.info("📊 Análise baseada em regras locais")
 st.sidebar.write(f"**📈 Registros:** {len(df_filtrado):,}")
 st.sidebar.write(f"**💰 Valor Total:** R$ {df_filtrado['Valor'].sum():,.2f}")
+
+# Rodapé com versão
+exibir_rodape_versao()

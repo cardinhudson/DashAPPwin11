@@ -64,6 +64,11 @@ REM Copiar arquivos Python principais para _internal
 copy "auth_simple.py" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
 copy "Extracao.py" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
 
+REM Copiar documentacao (opcional - para referencia)
+if exist "GUIA_EXTRACAO.md" (
+    copy "GUIA_EXTRACAO.md" "dist\Dashboard_KE5Z_OFICIAL\_internal\" >nul
+)
+
 echo Dados copiados para _internal
 echo.
 

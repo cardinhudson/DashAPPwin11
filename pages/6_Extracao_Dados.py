@@ -12,7 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth_simple import (
     verificar_autenticacao, exibir_header_usuario,
-    verificar_status_aprovado, eh_administrador
+    verificar_status_aprovado, eh_administrador,
+    exibir_info_ultima_extracao, exibir_rodape_versao
 )
 
 # Configuração da página
@@ -43,7 +44,10 @@ if not eh_administrador():
 st.title("📦 Extração de Dados KE5Z")
 st.subheader("Execução do Script Extração.py")
 
-# Exibir header do usuÃ¡rio
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
+
+# Exibir header do usuário
 exibir_header_usuario()
 
 st.markdown("---")
@@ -752,6 +756,9 @@ if aplicar_filtro:
 
 # Verificação de arquivos necessários (no final da página)
 st.subheader("📁 Verificação de Arquivos Necessários")
-ok, itens = verificar_arquivos_necessarios()
+ok, itens = verificar_arquivos_necessarios() 
 for desc, info, existe in itens:
     st.write(f"{'✅' if existe else '❌'} {desc} — {info}")
+
+# Rodapé com versão
+exibir_rodape_versao()

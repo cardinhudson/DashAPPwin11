@@ -8,7 +8,8 @@ from datetime import datetime
 # Adicionar diretório pai ao path para importar auth_simple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auth_simple import verificar_autenticacao, exibir_header_usuario
+from auth_simple import (verificar_autenticacao, exibir_header_usuario,
+                         exibir_info_ultima_extracao, exibir_rodape_versao)
 
 # Função para detectar caminho base correto
 def get_base_path():
@@ -91,6 +92,9 @@ verificar_autenticacao()
 st.sidebar.markdown("📋 **NAVEGAÇÃO:** Use abas do navegador")
 st.sidebar.markdown("🏠 Dashboard: Aplicação Desktop")
 st.sidebar.markdown("---")
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
 
 # Header
 exibir_header_usuario()
@@ -2880,3 +2884,6 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+# Rodapé com versão
+exibir_rodape_versao()

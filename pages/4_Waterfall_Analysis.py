@@ -10,7 +10,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth_simple import (verificar_autenticacao, exibir_header_usuario, 
-                         verificar_status_aprovado, is_modo_cloud, get_modo_operacao)
+                         verificar_status_aprovado, is_modo_cloud, get_modo_operacao,
+                         exibir_info_ultima_extracao, exibir_rodape_versao)
 
 # ================== FUNÇÃO PORTÁVEL PARA CAMINHOS ==================
 def get_base_path():
@@ -62,6 +63,10 @@ def get_base_path():
 
 st.set_page_config(page_title="Análise Waterfall - KE5Z", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
 verificar_autenticacao()
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
+
 exibir_header_usuario()
 
 # Indicador de navegação no topo
@@ -420,3 +425,6 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 st.markdown("**📊 Dashboard KE5Z - Análise Waterfall** | Desenvolvido com Streamlit")
+
+# Rodapé com versão
+exibir_rodape_versao()

@@ -7,7 +7,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from auth_simple import (verificar_autenticacao, exibir_header_usuario, 
-                             eh_administrador, salvar_usuario_json, listar_usuarios_json)
+                             eh_administrador, salvar_usuario_json, listar_usuarios_json,
+                             exibir_info_ultima_extracao, exibir_rodape_versao)
 except ImportError as e:
     st.error(f"❌ Erro ao importar auth_simple: {e}")
     st.stop()
@@ -68,6 +69,9 @@ if not eh_administrador():
     st.error("Esta página é restrita a administradores.")
     st.info("👥 Você está logado como usuário comum.")
     st.stop()
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
 
 # Header com informações do usuário
 exibir_header_usuario()
@@ -300,6 +304,9 @@ with tab4:
 st.sidebar.markdown("---")
 with st.sidebar.expander("📊 Info Sistema", expanded=False):
     usuarios = listar_usuarios_json()
-    st.write(f"**Total usuários:** {len(usuarios)}")
+    st.write(f"**Total usuários:** {len(usuarios)}") 
     st.write(f"**Arquivo:** usuarios.json")
+
+# Rodapé com versão
+exibir_rodape_versao()
     st.write(f"**Status:** ✅ Funcionando")

@@ -12,7 +12,9 @@ import warnings
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
                          eh_administrador, verificar_status_aprovado,
                          get_usuarios_cloud, adicionar_usuario_simples, criar_hash_senha,
-                         get_modo_operacao, is_modo_cloud)
+                         get_modo_operacao, is_modo_cloud,
+                         exibir_info_ultima_extracao, exibir_rodape_versao,
+                         verificar_e_atualizar_versao_automatica)
 from datetime import datetime
 
 # Suprimir avisos do Streamlit quando executado fora do contexto
@@ -129,6 +131,16 @@ if 'connection_optimized' not in st.session_state:
     
     # Marcar como otimizado
     st.session_state.connection_optimized = True
+
+# Verificar e atualizar versão automaticamente se houver mudanças nas páginas
+# Isso acontece apenas uma vez por sessão para evitar múltiplas atualizações
+if 'versao_verificada' not in st.session_state:
+    try:
+        verificar_e_atualizar_versao_automatica()
+        st.session_state.versao_verificada = True
+    except Exception:
+        # Em caso de erro, continuar sem atualizar versão
+        st.session_state.versao_verificada = True
 
 # Verificar autenticação - OBRIGATÓRIO no início de cada página
 # CORREÇÃO: Adicionar tratamento de erro robusto para portabilidade
@@ -555,6 +567,9 @@ else:
 
 # NOTA: df_total já está filtrado no cache acima (USI não nulo)
 
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
+
 # Header com informações do usuário e botão de logout
 col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
@@ -670,7 +685,7 @@ conta_opcoes_total = get_filter_options(df_total, 'Nº conta')[1:] if 'Nº conta
 
 # Filtro 1: USINA (com cache otimizado e session_state)
 # Manter valores válidos do session_state
-usina_valor_atual = st.session_state.filtro_usina
+usina_valor_atual = st.session_state.get('filtro_usina', ["Todos"])
 # Filtrar apenas valores que ainda existem nas opções
 usina_valor_atual = [v for v in usina_valor_atual if v in usina_opcoes]
 # Se não há valores válidos, usar padrão
@@ -684,12 +699,12 @@ usina_selecionada = st.sidebar.multiselect(
     key="filtro_usina_widget"
 )
 # Atualizar session_state apenas se mudou
-if usina_selecionada != st.session_state.filtro_usina:
+if usina_selecionada != st.session_state.get('filtro_usina', ["Todos"]):
     st.session_state.filtro_usina = usina_selecionada if usina_selecionada else ["Todos"]
 
 # Filtro 2: Período (usando opções do df_total para melhor performance)
 # Manter valor do session_state se ainda estiver disponível
-periodo_valor_atual = st.session_state.filtro_periodo
+periodo_valor_atual = st.session_state.get('filtro_periodo', "Todos")
 if periodo_valor_atual not in periodo_opcoes_total:
     periodo_valor_atual = "Todos"
 
@@ -700,13 +715,13 @@ periodo_selecionado = st.sidebar.selectbox(
     key="filtro_periodo_widget"
 )
 # Atualizar session_state apenas se mudou
-if periodo_selecionado != st.session_state.filtro_periodo:
+if periodo_selecionado != st.session_state.get('filtro_periodo', "Todos"):
     st.session_state.filtro_periodo = periodo_selecionado
 
 # Filtro 3: Centro cst (usando opções do df_total)
 if 'Centro cst' in df_total.columns:
     # Manter valor do session_state se ainda estiver disponível
-    centro_cst_valor_atual = st.session_state.filtro_centro_cst
+    centro_cst_valor_atual = st.session_state.get('filtro_centro_cst', "Todos")
     if centro_cst_valor_atual not in centro_cst_opcoes_total:
         centro_cst_valor_atual = "Todos"
     
@@ -717,13 +732,13 @@ if 'Centro cst' in df_total.columns:
         key="filtro_centro_cst_widget"
     )
     # Atualizar session_state apenas se mudou
-    if centro_cst_selecionado != st.session_state.filtro_centro_cst:
+    if centro_cst_selecionado != st.session_state.get('filtro_centro_cst', "Todos"):
         st.session_state.filtro_centro_cst = centro_cst_selecionado
 
 # Filtro 4: Conta contábil (usando opções do df_total)
 if 'Nº conta' in df_total.columns:
     # Manter valores válidos do session_state
-    conta_valor_atual = st.session_state.filtro_conta_contabil
+    conta_valor_atual = st.session_state.get('filtro_conta_contabil', [])
     conta_valor_atual = [v for v in conta_valor_atual if v in conta_opcoes_total]
     
     conta_contabil_selecionadas = st.sidebar.multiselect(
@@ -733,7 +748,7 @@ if 'Nº conta' in df_total.columns:
         key="filtro_conta_contabil_widget"
     )
     # Atualizar session_state apenas se mudou
-    if conta_contabil_selecionadas != st.session_state.filtro_conta_contabil:
+    if conta_contabil_selecionadas != st.session_state.get('filtro_conta_contabil', []):
         st.session_state.filtro_conta_contabil = conta_contabil_selecionadas
 
 # Filtros principais (com cache otimizado e session_state)
@@ -813,22 +828,22 @@ filtros_aplicar = {}
 # Filtro de USI - só adicionar se não for "Todos"
 # NOTA: A verificação de "Others" já foi feita antes de carregar as opções de filtro (linha 545-560)
 # então aqui apenas adicionamos o filtro ao dicionário
-filtro_usina = st.session_state.filtro_usina
+filtro_usina = st.session_state.get('filtro_usina', ["Todos"])
 if filtro_usina and "Todos" not in filtro_usina:
     filtros_aplicar['USI'] = filtro_usina
 
 # Filtro de Período - só adicionar se não for "Todos"
-filtro_periodo = st.session_state.filtro_periodo
+filtro_periodo = st.session_state.get('filtro_periodo', "Todos")
 if filtro_periodo != "Todos":
     filtros_aplicar['Período'] = filtro_periodo
 
 # Filtro de Centro cst - só adicionar se não for "Todos"
-filtro_centro_cst = st.session_state.filtro_centro_cst
+filtro_centro_cst = st.session_state.get('filtro_centro_cst', "Todos")
 if filtro_centro_cst != "Todos":
     filtros_aplicar['Centro cst'] = filtro_centro_cst
 
 # Filtro de Nº conta - só adicionar se não estiver vazio
-filtro_conta = st.session_state.filtro_conta_contabil
+filtro_conta = st.session_state.get('filtro_conta_contabil', [])
 if filtro_conta and len(filtro_conta) > 0:
     filtros_aplicar['Nº conta'] = filtro_conta
 
@@ -1740,7 +1755,7 @@ if df_veiculos is not None and not df_veiculos.empty:
     
     # Filtros básicos
     if 'USI' in df_veiculos_filtrado.columns:
-        filtro_usina = st.session_state.filtro_usina
+        filtro_usina = st.session_state.get('filtro_usina', ["Todos"])
         if filtro_usina and "Todos" not in filtro_usina:
             filtros_aplicar_veiculos['USI'] = filtro_usina
     
@@ -1752,7 +1767,7 @@ if df_veiculos is not None and not df_veiculos.empty:
     }
     
     # Aplicar filtro de Período - verificar se há coluna Mes (numérica) ou Período (texto)
-    filtro_periodo = st.session_state.filtro_periodo
+    filtro_periodo = st.session_state.get('filtro_periodo', "Todos")
     if filtro_periodo != "Todos":
         try:
             periodo_num = float(filtro_periodo)
@@ -1773,12 +1788,12 @@ if df_veiculos is not None and not df_veiculos.empty:
                 filtros_aplicar_veiculos['Período'] = str(filtro_periodo)
     
     if 'Centro cst' in df_veiculos_filtrado.columns:
-        filtro_centro_cst = st.session_state.filtro_centro_cst
+        filtro_centro_cst = st.session_state.get('filtro_centro_cst', "Todos")
         if filtro_centro_cst != "Todos":
             filtros_aplicar_veiculos['Centro cst'] = filtro_centro_cst
     
     if 'Nº conta' in df_veiculos_filtrado.columns:
-        filtro_conta = st.session_state.filtro_conta_contabil
+        filtro_conta = st.session_state.get('filtro_conta_contabil', [])
         if filtro_conta and len(filtro_conta) > 0:
             filtros_aplicar_veiculos['Nº conta'] = filtro_conta
     
@@ -2066,11 +2081,8 @@ if all(col in df_filtrado.columns for col in ['Type 05', 'Type 06', 'Type 07', '
                 except Exception as e:
                     st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
 
-# Footer
-st.markdown("---")
-st.info("💡 Dashboard KE5Z com otimizações de cache e memória")
-
 # Informações de funcionalidades restauradas
+st.markdown("---")
 col1, col2, col3 = st.columns(3)
 with col1:
     st.success("✅ Exportação Excel")
@@ -2083,3 +2095,6 @@ if is_cloud:
     st.success("☁️ Executando no Streamlit Cloud com otimizações")
 else:
     st.success("💻 Executando localmente com performance máxima")
+
+# Rodapé com versão
+exibir_rodape_versao()

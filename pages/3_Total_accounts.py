@@ -9,7 +9,8 @@ import base64
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
-                  verificar_status_aprovado, is_modo_cloud, get_modo_operacao)
+                  verificar_status_aprovado, is_modo_cloud, get_modo_operacao,
+                  exibir_info_ultima_extracao, exibir_rodape_versao)
 
 # ================== FUNÇÃO PORTÁVEL PARA CAMINHOS ==================
 def get_base_path():
@@ -85,6 +86,9 @@ with col1:
     st.title("📊 Total Accounts - Centro de Lucro 02S")
     st.subheader("Somatório de todas as contas do centro de lucro 02S, "
                  "exceto as contas D_B")
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
 
 # Exibir header do usuário
 exibir_header_usuario()
@@ -539,6 +543,9 @@ if colunas_necessarias.issubset(set(df_filtrado.columns)):
                 st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
             except Exception as e:
                 st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
-else:
+else: 
     st.info("Colunas necessárias não disponíveis para esta tabela.")
+
+# Rodapé com versão
+exibir_rodape_versao()
 

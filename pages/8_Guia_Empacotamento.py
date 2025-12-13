@@ -6,7 +6,8 @@ from datetime import datetime
 # Adicionar diretório pai ao path para importar auth_simple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auth_simple import verificar_autenticacao, exibir_header_usuario
+from auth_simple import (verificar_autenticacao, exibir_header_usuario,
+                         exibir_info_ultima_extracao, exibir_rodape_versao)
 
 # Configuração da página
 st.set_page_config(
@@ -23,6 +24,9 @@ verificar_autenticacao()
 st.sidebar.markdown("📋 **NAVEGAÇÃO:** Use abas do navegador")
 st.sidebar.markdown("🏠 Dashboard: Aplicação Desktop")
 st.sidebar.markdown("---")
+
+# Exibir informação da última extração no topo
+exibir_info_ultima_extracao()
 
 # Header
 exibir_header_usuario()
@@ -1433,6 +1437,5 @@ st.markdown("""
 - ✅ Dados de extração salvos dentro do `_internal` (mesmo local onde são lidos)
 """)
 
-# Footer
-st.markdown("---")
-st.markdown(f"*Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}*")
+# Rodapé com versão
+exibir_rodape_versao()
