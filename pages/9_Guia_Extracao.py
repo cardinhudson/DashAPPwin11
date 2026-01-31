@@ -8,13 +8,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
                          exibir_info_ultima_extracao, exibir_rodape_versao)
 
-# Configuração da página
-st.set_page_config(
-    page_title="Guia de Extração - Dashboard KE5Z",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Guia de Extração - Dashboard KE5Z", page_icon="📊", layout="wide"
 
 # Verificar autenticação
 verificar_autenticacao()
@@ -115,8 +110,8 @@ KE5Z/              # Arquivos Parquet
 └── KE5Z_waterfall.parquet # Versão otimizada para waterfall
 
 arquivos/          # Arquivos Excel
-├── KE5Z_veiculos.xlsx      # USIs: Veículos, TC Ext, LC
-└── KE5Z_pwt.xlsx           # USI: PWT
+├── KE5Z.xlsx               # Excel único (quando couber no limite do Excel)
+└── KE5Z_[USI].xlsx          # Fallback: Excel por USI (quando exceder o limite)
 """, language="text")
 
 st.markdown("---")
@@ -134,26 +129,16 @@ st.markdown("""
 
 st.markdown("### Colunas Principais (Após Padronização)")
 
+st.info("""
+**Arquivo Original KE5Z.txt** possui **35 colunas** separadas por TAB.
+O cabeçalho está na **linha 10** (índice 9). Algumas colunas têm nomes vazios.
+""")
+
 colunas_ke5z = {
-    "Coluna": ["Ano", "Período", "Nº conta", "Centro cst", "doc.ref", "Em MCont.", "Qtd.", "Material", "Texto", "Fornec.", "Cliente", "Dt.lçto.", "Usuário", "Tipo", "Doc.compra"],
-    "Tipo": ["float64", "float64", "object", "object", "float64", "float64", "float64", "object", "object", "object", "object", "object", "object", "object", "object"],
-    "Descrição": [
-        "Ano do lançamento",
-        "Mês do lançamento (7-12)",
-        "Código da conta contábil",
-        "Centro de custo",
-        "Número do documento de referência",
-        "Valor monetário (renomeado para 'Valor')",
-        "Quantidade",
-        "Código do material",
-        "Descrição do material (padronizado para 'Texto breve material')",
-        "Código do fornecedor",
-        "Código do cliente",
-        "Data de lançamento",
-        "Usuário que fez o lançamento",
-        "Tipo de lançamento",
-        "Documento de compra"
-    ]
+    "Índice": ["0-1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23-24", "25", "26", "27", "28-31", "32", "33", "34"],
+    "Coluna Original": ["(vazias)", "Nº conta", "Centro cst", "(vazia)", "Ano", "Período", "Cen.lucro", "Nº doc.", "Doc.ref.", "Em MCont.", "Qtd.", "Usuário", "Texto", "Dt.lçto.", "Material", "Elem.PEP", "Denominação", "Classe objs.", "Fornec.", "Cen.", "Obj.custo", "Tipo", "TD, SocPar", "Item", "Cliente", "D", "EmpEm., Empr, Hora, TMv", "D/C", "Doc.compra", "Imobil."],
+    "Coluna Padronizada": ["-", "Nº conta", "Centro cst", "-", "Ano", "Período", "Cen.lucro", "-", "doc.ref", "Em MCont. → Valor", "Qtd.", "Usuário", "Texto", "Dt.lçto.", "Material", "-", "-", "-", "Fornec.", "-", "-", "Tipo", "-", "Item", "Cliente", "-", "-", "-", "Doc.compra", "-"],
+    "Uso": ["Removidas", "✅ Chave", "✅ Filtro", "Removida", "✅ Filtro", "✅ Filtro", "Info", "Removida", "✅ Info", "✅ Principal", "✅ Info", "✅ Info", "✅ Descrição", "✅ Data", "✅ Merge KSBB", "Removida", "Info", "Info", "✅ Merge Fornec.", "Info", "Removida", "✅ Info", "Removidas", "Info", "✅ Info", "Removida", "Removidas", "Removida", "✅ Info", "Removida"]
 }
 
 st.dataframe(colunas_ke5z, use_container_width=True, hide_index=True)
@@ -172,7 +157,7 @@ with st.expander("2. Leitura do Arquivo"):
     st.markdown("""
     - **Tentativas múltiplas**: Testa diferentes valores de `skiprows` (3-15)
     - **Validação**: Verifica se o cabeçalho tem pelo menos 5 colunas nomeadas
-    - **Tratamento de erros**: Pula linhas mal formatadas (`on_bad_lines='skip'`)
+    - **Tratamento de erros**: Corrige linhas mal formatadas (ex.: colunas vazias no fim) para **não perder registros**
     """)
 
 with st.expander("3. Padronização de Colunas"):
@@ -253,7 +238,9 @@ df_ksbb = pd.read_csv(
     engine='python',
     skiprows=3,
     skipfooter=1,
-    on_bad_lines='skip'
+    # Tratamento robusto: corrige linhas com \"tabs\" a mais/menos
+    # para evitar perda silenciosa de registros.
+    on_bad_lines=handler
 )
     """, language="python")
 
@@ -774,7 +761,7 @@ with st.expander("2. Coluna Não Encontrada"):
 with st.expander("3. Erro de Parsing"):
     st.markdown("""
     - **Sintoma**: `ParserError: Expected X fields, saw Y`
-    - **Solução**: Usa `on_bad_lines='skip'` para pular linhas mal formatadas
+    - **Solução**: Usa um `on_bad_lines` customizado para **corrigir** linhas mal formatadas (padding/merge/truncate) e evitar perda de dados
     """)
 
 with st.expander("4. Material Não Encontrado no Merge"):

@@ -16,13 +16,8 @@ from auth_simple import (
     exibir_info_ultima_extracao, exibir_rodape_versao
 )
 
-# Configuração da página
-st.set_page_config(
-    page_title="Extração de Dados - Dashboard KE5Z",
-    page_icon="📦",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Extração de Dados - KE5Z", page_icon="⬇️", layout="wide"
 
 # Verificar autenticação
 verificar_autenticacao()
@@ -49,6 +44,56 @@ exibir_info_ultima_extracao()
 
 # Exibir header do usuário
 exibir_header_usuario()
+
+st.markdown("---")
+
+# ================== SELETOR DE ANO ==================
+st.subheader("📅 Seleção de Ano")
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    # Detectar anos disponíveis
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    
+    anos_disponiveis = []
+    extracoes_path = os.path.join(base_path, "Extracoes")
+    
+    if os.path.exists(extracoes_path):
+        for item in os.listdir(extracoes_path):
+            if item.isdigit() and len(item) == 4:
+                anos_disponiveis.append(int(item))
+    
+    # Se não há anos, adicionar ano atual
+    ano_atual = datetime.now().year
+    if not anos_disponiveis:
+        anos_disponiveis = [ano_atual]
+    
+    anos_disponiveis = sorted(anos_disponiveis, reverse=True)
+    
+    # Seletor de ano
+    ano_selecionado = st.selectbox(
+        "Selecione o ano para extração:",
+        options=anos_disponiveis,
+        index=0,
+        help="Selecione o ano dos dados que deseja processar"
+    )
+
+with col2:
+    st.metric("Ano Selecionado", ano_selecionado)
+
+# Verificar se há arquivos para o ano selecionado
+pasta_ke5z_ano = os.path.join(base_path, "Extracoes", str(ano_selecionado), "KE5Z")
+if os.path.exists(pasta_ke5z_ano):
+    arquivos_txt = [f for f in os.listdir(pasta_ke5z_ano) if f.endswith('.txt')]
+    if arquivos_txt:
+        st.success(f"✅ {len(arquivos_txt)} arquivo(s) .txt encontrado(s) para {ano_selecionado}")
+    else:
+        st.warning(f"⚠️ Nenhum arquivo .txt encontrado em Extracoes/{ano_selecionado}/KE5Z/")
+else:
+    st.info(f"📁 Pasta Extracoes/{ano_selecionado}/KE5Z/ não encontrada. Será criada ao executar.")
 
 st.markdown("---")
 
@@ -257,6 +302,12 @@ with col_a:
 with col_b:
     aplicar_filtro = st.button("🔄 Aplicar Filtro de Mês (Excel)", use_container_width=True)
 
+# Salvar ano selecionado no session_state para uso nas funções
+if 'ano_selecionado' not in st.session_state:
+    st.session_state.ano_selecionado = ano_selecionado
+else:
+    st.session_state.ano_selecionado = ano_selecionado
+
 def atualizar_progresso(pct, titulo, detalhe=""):
     with status_box.container():
         st.write(f"{titulo}  {detalhe}")
@@ -354,7 +405,7 @@ def verificar_arquivos_necessarios():
     return todos_ok, resultados
 
 
-def executar_extracao(meses_filtro=None, progress_callback=None, logs_placeholder=None):
+def executar_extracao(ano_selecionado=None, meses_filtro=None, progress_callback=None, logs_placeholder=None):
     """Executa o script Extração.py com captura de logs em tempo real"""
     try:
         # Obter diretório base (onde está o executável)
@@ -365,11 +416,16 @@ def executar_extracao(meses_filtro=None, progress_callback=None, logs_placeholde
             # Executando normalmente - usar diretório do script atual
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        adicionar_log("🚀 Iniciando execução do Extração.py...")
+        adicionar_log(f"🚀 Iniciando execução do Extração.py para o ano {ano_selecionado}...")
         if progress_callback:
             progress_callback(10, "🚀 Iniciando execução...", "Preparando ambiente")
 
         script_path = os.path.join(base_dir, "Extracao.py")
+        
+        # CRÍTICO: Definir variável de ambiente do ANO ANTES de qualquer execução
+        if ano_selecionado:
+            os.environ['ANO_EXTRACAO'] = str(ano_selecionado)
+            adicionar_log(f"📅 Variável ANO_EXTRACAO definida: {ano_selecionado}")
         
         # Passar meses selecionados via variável de ambiente (ex.: "9,10,11")
         try:
@@ -517,6 +573,13 @@ def executar_extracao(meses_filtro=None, progress_callback=None, logs_placeholde
 
             # Preparar ambiente para subprocess
             env = os.environ.copy()
+            
+            # Adicionar ano selecionado ao ambiente
+            if ano_selecionado:
+                env["ANO_EXTRACAO"] = str(ano_selecionado)
+                adicionar_log(f"📅 Ano selecionado: {ano_selecionado}")
+            
+            # Adicionar filtro de meses se fornecido
             try:
                 if meses_filtro and isinstance(meses_filtro, (list, tuple)):
                     env["MESES_FILTRO"] = ",".join(str(int(m)) for m in meses_filtro)
@@ -741,7 +804,7 @@ def aplicar_filtro_mes_excel(meses_filtro):
 if executar:
     st.session_state.logs.clear()
     atualizar_progresso(10, "Preparando...")
-    ok, msg = executar_extracao(meses_filtro=meses_filtro, progress_callback=atualizar_progresso, logs_placeholder=logs_placeholder)
+    ok, msg = executar_extracao(ano_selecionado=ano_selecionado, meses_filtro=meses_filtro, progress_callback=atualizar_progresso, logs_placeholder=logs_placeholder)
     atualizar_progresso(80, "Verificando arquivos...")
     verificar_arquivos_gerados()
     atualizar_progresso(100, "Concluído")

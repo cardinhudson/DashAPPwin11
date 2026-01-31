@@ -192,6 +192,83 @@ if modo_atual == 'cloud':
 else:
     st.sidebar.info("💻 **Modo Completo**")
 
+# ================== FILTRO DE ANO ==================
+st.sidebar.markdown("---")
+st.sidebar.markdown("**📅 Ano dos Dados**")
+
+# Detectar anos disponíveis
+base_path_anos = get_base_path()
+anos_disponiveis = []
+ke5z_path = os.path.join(base_path_anos, "KE5Z")
+
+if os.path.exists(ke5z_path):
+    for item in os.listdir(ke5z_path):
+        ano_path = os.path.join(ke5z_path, item)
+        if os.path.isdir(ano_path) and item.isdigit() and len(item) == 4:
+            # Verificar se tem arquivos parquet
+            try:
+                arquivos_parquet = [f for f in os.listdir(ano_path) if f.endswith('.parquet')]
+                if arquivos_parquet:
+                    anos_disponiveis.append(int(item))
+            except:
+                pass
+
+# Se não há anos, usar ano atual
+if not anos_disponiveis:
+    anos_disponiveis = [datetime.now().year]
+
+# Ordenar anos do mais recente para o mais antigo
+anos_disponiveis = sorted(anos_disponiveis, reverse=True)
+
+# Seletor de ano (suporte multi-ano)
+st.sidebar.markdown("**📅 Seleção de Ano**")
+
+# Checkbox para habilitar seleção multi-ano
+multi_ano_enabled = st.sidebar.checkbox(
+    "Selecionar múltiplos anos",
+    value=False,
+    help="Habilite para visualizar dados de múltiplos anos de forma contínua",
+    key="multi_ano_checkbox"
+)
+
+if multi_ano_enabled:
+    # Seleção multi-ano
+    anos_selecionados = st.sidebar.multiselect(
+        "Selecione os anos:",
+        options=anos_disponiveis,
+        default=[anos_disponiveis[0]],
+        help="Escolha múltiplos anos para visualização contínua"
+    )
+    
+    if not anos_selecionados:
+        st.sidebar.warning("⚠️ Selecione pelo menos um ano")
+        anos_selecionados = [anos_disponiveis[0]]
+    
+    # Ordenar anos selecionados
+    anos_selecionados = sorted(anos_selecionados)
+    
+    # Mostrar anos selecionados
+    st.sidebar.info(f"📊 Anos selecionados: {', '.join(map(str, anos_selecionados))}")
+    
+    # Salvar ano principal no session_state (primeiro da lista)
+    ano_selecionado = anos_selecionados[0]
+    st.session_state['ano_selecionado'] = ano_selecionado
+    st.session_state['anos_selecionados'] = anos_selecionados
+    st.session_state['multi_ano_mode'] = True
+else:
+    # Seleção de ano único
+    ano_selecionado = st.sidebar.selectbox(
+        "Selecione o ano:",
+        options=anos_disponiveis,
+        index=0,
+        help="Escolha o ano dos dados a visualizar"
+    )
+    
+    # Salvar ano selecionado no session_state
+    st.session_state['ano_selecionado'] = ano_selecionado
+    st.session_state['anos_selecionados'] = [ano_selecionado]
+    st.session_state['multi_ano_mode'] = False
+
 # Sistema de cache inteligente para otimização de memória e conexão
 # CORREÇÃO: Usar hash do arquivo para invalidar cache quando dados são atualizados
 @st.cache_data(
@@ -200,12 +277,31 @@ else:
     show_spinner=True,
     persist="disk"
 )
-def load_data_optimized(arquivo_tipo="completo"):
+def load_data_optimized(arquivo_tipo="completo", ano=None):
     """Carrega dados com otimização inteligente de memória
     
     Args:
         arquivo_tipo: "completo", "main" (sem Others), ou "others"
+        ano: Ano dos dados (padrão: detecta automaticamente)
     """
+    
+    # Se ano não informado, detectar anos disponíveis ou usar session_state
+    if ano is None:
+        ano = st.session_state.get('ano_selecionado', None)
+        
+        # Se ainda não tem ano, detectar disponíveis
+        if ano is None:
+            base_path = get_base_path()
+            ke5z_path = os.path.join(base_path, "KE5Z")
+            
+            if os.path.exists(ke5z_path):
+                anos = sorted([int(d) for d in os.listdir(ke5z_path) if d.isdigit() and os.path.isdir(os.path.join(ke5z_path, d))], reverse=True)
+                if anos:
+                    ano = anos[0]  # Usar ano mais recente
+                else:
+                    ano = 2025  # Fallback para 2025 (dados atuais)
+            else:
+                ano = 2025  # Fallback padrão
     
     # Definir qual arquivo carregar
     arquivos_disponiveis = {
@@ -222,18 +318,18 @@ def load_data_optimized(arquivo_tipo="completo"):
     # Lista de locais possíveis para procurar o arquivo
     locais_possiveis = []
     
-    # 1. Local padrão (base_path/KE5Z/) - _internal onde dados são salvos
-    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
+    # 1. Local padrão (base_path/KE5Z/ANO/) - _internal onde dados são salvos
+    locais_possiveis.append(os.path.join(base_path, "KE5Z", str(ano), nome_arquivo))
     
     # 2. Se estiver no executável, tentar também diretório do executável (para portabilidade)
     if hasattr(sys, '_MEIPASS'):
         try:
             exe_path = os.path.abspath(sys.executable)
             exe_dir = os.path.dirname(exe_path)
-            # Tentar exe_dir/KE5Z/ (fallback para portabilidade)
-            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
-            # Tentar exe_dir/_internal/KE5Z/
-            locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
+            # Tentar exe_dir/KE5Z/ANO/ (fallback para portabilidade)
+            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", str(ano), nome_arquivo))
+            # Tentar exe_dir/_internal/KE5Z/ANO/
+            locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", str(ano), nome_arquivo))
         except Exception:
             pass
     
@@ -328,6 +424,56 @@ def load_data_optimized(arquivo_tipo="completo"):
     except Exception as e:
         raise e
 
+def load_data_multi_year(arquivo_tipo="completo", anos=None):
+    """Carrega e concatena dados de múltiplos anos para visualização contínua
+    
+    Args:
+        arquivo_tipo: Tipo de arquivo (completo, main, others)
+        anos: Lista de anos a carregar (padrão: detecta do session_state)
+    
+    Returns:
+        DataFrame com dados de todos os anos concatenados com coluna 'Ano' adicionada
+    """
+    
+    if anos is None:
+        anos = st.session_state.get('anos_selecionados', [datetime.now().year])
+    
+    if not isinstance(anos, list):
+        anos = [anos]
+    
+    dfs_anos = []
+    anos_carregados = []
+    
+    with st.spinner(f"🔄 Carregando dados de {len(anos)} ano(s)..."):
+        for ano in anos:
+            try:
+                df = load_data_optimized(arquivo_tipo, ano)
+                
+                # Adicionar coluna de ano se não existir
+                if 'Ano' not in df.columns:
+                    df['Ano'] = ano
+                
+                dfs_anos.append(df)
+                anos_carregados.append(ano)
+                
+            except Exception as e:
+                st.warning(f"⚠️ Não foi possível carregar dados de {ano}: {str(e)}")
+                continue
+    
+    if not dfs_anos:
+        raise FileNotFoundError(f"Nenhum dado foi carregado para os anos: {anos}")
+    
+    # Concatenar todos os dataframes
+    df_combined = pd.concat(dfs_anos, ignore_index=True)
+    
+    # Filtrar USI não nulo
+    df_combined = df_combined[df_combined['USI'].notna()].copy()
+    
+    st.sidebar.success(f"✅ Dados carregados: {', '.join(map(str, anos_carregados))}")
+    st.sidebar.info(f"📊 Total: {len(df_combined):,} registros")
+    
+    return df_combined
+
 # Interface para seleção de dados (COMPACTO)
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🗂️ Dados**")
@@ -336,20 +482,23 @@ st.sidebar.markdown("**🗂️ Dados**")
 # CORREÇÃO: Buscar arquivos na mesma ordem que load_data_optimized (priorizar diretório do executável)
 base_path = get_base_path()
 
-def verificar_arquivo_existe(nome_arquivo):
+def verificar_arquivo_existe(nome_arquivo, ano=None):
     """Verifica se arquivo existe nos locais possíveis (mesma ordem de load_data_optimized)"""
+    if ano is None:
+        ano = st.session_state.get('ano_selecionado', datetime.now().year)
+    
     locais_possiveis = []
     
-    # 1. Local padrão (base_path/KE5Z/) - _internal onde dados são salvos
-    locais_possiveis.append(os.path.join(base_path, "KE5Z", nome_arquivo))
+    # 1. Local padrão (base_path/KE5Z/ANO/) - _internal onde dados são salvos
+    locais_possiveis.append(os.path.join(base_path, "KE5Z", str(ano), nome_arquivo))
     
     # 2. Se estiver no executável, tentar também diretório do executável (para portabilidade)
     if hasattr(sys, '_MEIPASS'):
         try:
             exe_path = os.path.abspath(sys.executable)
             exe_dir = os.path.dirname(exe_path)
-            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", nome_arquivo))
-            locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", nome_arquivo))
+            locais_possiveis.append(os.path.join(exe_dir, "KE5Z", str(ano), nome_arquivo))
+            locais_possiveis.append(os.path.join(exe_dir, "_internal", "KE5Z", str(ano), nome_arquivo))
         except Exception:
             pass
     
@@ -456,28 +605,57 @@ if 'opcao_dados_info_anterior' not in st.session_state or st.session_state.opcao
     st.session_state.opcao_dados_info_anterior = opcao_selecionada
 
 # OTIMIZAÇÃO: Cachear dados no session_state (persiste entre navegações)
-cache_key = f"df_total_{opcao_selecionada}"
-cache_loaded_key = f"df_total_loaded_{opcao_selecionada}"
+# Verificar se está em modo multi-ano
+multi_ano_mode = st.session_state.get('multi_ano_mode', False)
+anos_selecionados = st.session_state.get('anos_selecionados', [datetime.now().year])
 
-# Verificar se precisa carregar (mudou opção ou não existe no cache)
-if cache_key not in st.session_state or st.session_state.get('opcao_dados_anterior') != opcao_selecionada:
-    # Carregar dados apenas se mudou a opção ou não está em cache
+if multi_ano_mode and len(anos_selecionados) > 1:
+    # Modo multi-ano: gerar chave de cache com todos os anos
+    anos_str = '_'.join(map(str, sorted(anos_selecionados)))
+    cache_key = f"df_total_{opcao_selecionada}_anos_{anos_str}"
+    cache_loaded_key = f"df_total_loaded_{opcao_selecionada}_anos_{anos_str}"
+else:
+    # Modo ano único
+    cache_key = f"df_total_{opcao_selecionada}_ano_{st.session_state.get('ano_selecionado', datetime.now().year)}"
+    cache_loaded_key = f"df_total_loaded_{opcao_selecionada}_ano_{st.session_state.get('ano_selecionado', datetime.now().year)}"
+
+# Verificar se precisa carregar (mudou opção, ano/anos ou não existe no cache)
+ano_atual = st.session_state.get('ano_selecionado', datetime.now().year)
+opcao_mudou = st.session_state.get('opcao_dados_anterior') != opcao_selecionada
+ano_mudou = st.session_state.get('ano_dados_anterior') != ano_atual
+anos_mudaram = st.session_state.get('anos_dados_anteriores') != anos_selecionados
+mode_mudou = st.session_state.get('multi_ano_mode_anterior') != multi_ano_mode
+
+if cache_key not in st.session_state or opcao_mudou or ano_mudou or anos_mudaram or mode_mudou:
+    # Carregar dados apenas se mudou a opção, ano(s) ou não está em cache
     try:
-        with st.spinner("🔄 Carregando dados..."):
-            df_total = load_data_optimized(opcao_selecionada)
+        if multi_ano_mode and len(anos_selecionados) > 1:
+            # Carregar dados de múltiplos anos
+            df_total = load_data_multi_year(opcao_selecionada, anos_selecionados)
+        else:
+            # Carregar dados de ano único
+            df_total = load_data_optimized(opcao_selecionada, ano_atual)
             # Filtrar USI não nulo antes de cachear
             df_total = df_total[df_total['USI'].notna()].copy()
-            st.session_state[cache_key] = df_total
-            st.session_state.opcao_dados_anterior = opcao_selecionada
-            st.session_state[cache_loaded_key] = True
         
-        # Mostrar mensagem apenas na primeira vez ou quando muda
-        st.sidebar.success("✅ Dados carregados com sucesso")
-        if not is_cloud:
-            st.sidebar.info(f"📊 {len(df_total)} registros carregados")
+        # Cachear dados
+        st.session_state[cache_key] = df_total
+        st.session_state.opcao_dados_anterior = opcao_selecionada
+        st.session_state.ano_dados_anterior = ano_atual
+        st.session_state.anos_dados_anteriores = anos_selecionados
+        st.session_state.multi_ano_mode_anterior = multi_ano_mode
+        st.session_state[cache_loaded_key] = True
+        
+        # Mostrar mensagem de sucesso (já exibida pelas funções de carregamento)
+        if not multi_ano_mode:
+            if not is_cloud:
+                st.sidebar.info(f"📊 {len(df_total):,} registros")
     except FileNotFoundError as e:
-        st.error("❌ Arquivo de dados não encontrado!")
-        st.error(f"🔍 Procurando por: `KE5Z/KE5Z.parquet`")
+        if multi_ano_mode:
+            st.error(f"❌ Erro ao carregar dados dos anos selecionados!")
+        else:
+            st.error(f"❌ Arquivo de dados não encontrado para o ano {ano_atual}!")
+        st.error(f"🔍 Procurando por: `KE5Z/{ano_atual}/KE5Z.parquet`")
         
         # CORREÇÃO: Mostrar informações de debug para portabilidade
         if hasattr(sys, '_MEIPASS'):
@@ -949,8 +1127,8 @@ if eh_administrador():
 
 # Gráfico de barras para a soma dos valores por 'Período'
 @st.cache_data(ttl=900, max_entries=2)
-def create_period_chart(df_data):
-    """Cria gráfico otimizado"""
+def create_period_chart(df_data, multi_ano_mode=False):
+    """Cria gráfico otimizado com eixo contínuo para multi-ano"""
     try:
         # Filtrar valores nulos e zeros ANTES de agrupar
         df_filtered = df_data[(df_data['Valor'].notna()) & (df_data['Valor'] != 0) & (df_data['Valor'].abs() >= 0.01)].copy()
@@ -958,21 +1136,70 @@ def create_period_chart(df_data):
         if df_filtered.empty:
             return None
         
-        chart_data = df_filtered.groupby('Período')['Valor'].sum().reset_index()
-        # Filtrar novamente após agrupamento para garantir que não há zeros
-        chart_data = chart_data[(chart_data['Valor'].notna()) & (chart_data['Valor'] != 0) & (chart_data['Valor'].abs() >= 0.01)]
-        
-        if chart_data.empty:
-            return None
-        
-        grafico_barras = alt.Chart(chart_data).mark_bar().encode(
-            x=alt.X('Período:N', title='Período'),
-            y=alt.Y('Valor:Q', title='Soma do Valor'),
-            color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
-            tooltip=['Período:N', 'Valor:Q']
-        ).properties(
-            title='Soma do Valor por Período'
-        )
+        # Se multi-ano e tem coluna Ano, criar eixo contínuo Período/Ano
+        if multi_ano_mode and 'Ano' in df_filtered.columns:
+            # Mapear nomes de meses para números
+            meses_map = {
+                'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4,
+                'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8,
+                'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12,
+                'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6,
+                'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12
+            }
+            
+            # Criar coluna de ordenação e label
+            df_temp = df_filtered.copy()
+            df_temp['Mes_Num'] = df_temp['Período'].astype(str).str.lower().map(meses_map)
+            
+            # Se não conseguiu mapear, tentar extrair número do período
+            if df_temp['Mes_Num'].isna().any():
+                df_temp['Mes_Num'] = pd.to_numeric(df_temp['Período'], errors='coerce')
+            
+            # Criar label no formato "mes/ano" (ex: "8/2025" ou "jan/2025")
+            # Remover casas decimais usando int() para ano e mês
+            df_temp['Periodo_Label'] = df_temp.apply(
+                lambda row: f"{int(row['Mes_Num']) if pd.notna(row['Mes_Num']) else row['Período']}/{int(row['Ano'])}",
+                axis=1
+            )
+            
+            # Criar coluna de ordenação cronológica (ano*100 + mês)
+            df_temp['Ordem'] = df_temp['Ano'] * 100 + df_temp['Mes_Num'].fillna(0)
+            
+            # Agrupar e somar
+            chart_data = df_temp.groupby(['Periodo_Label', 'Ordem'])['Valor'].sum().reset_index()
+            chart_data = chart_data[(chart_data['Valor'].notna()) & (chart_data['Valor'] != 0) & (chart_data['Valor'].abs() >= 0.01)]
+            
+            if chart_data.empty:
+                return None
+            
+            # Ordenar cronologicamente
+            chart_data = chart_data.sort_values('Ordem')
+            
+            # Criar gráfico com eixo contínuo
+            grafico_barras = alt.Chart(chart_data).mark_bar().encode(
+                x=alt.X('Periodo_Label:N', title='Período', sort=chart_data['Periodo_Label'].tolist()),
+                y=alt.Y('Valor:Q', title='Soma do Valor', axis=alt.Axis(format=',.2f')),
+                color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
+                tooltip=[alt.Tooltip('Periodo_Label:N', title='Período'), alt.Tooltip('Valor:Q', format=',.2f', title='Valor')]
+            ).properties(
+                title='Soma do Valor por Período (Contínuo)'
+            )
+        else:
+            # Modo ano único - agrupamento normal
+            chart_data = df_filtered.groupby('Período')['Valor'].sum().reset_index()
+            chart_data = chart_data[(chart_data['Valor'].notna()) & (chart_data['Valor'] != 0) & (chart_data['Valor'].abs() >= 0.01)]
+            
+            if chart_data.empty:
+                return None
+            
+            grafico_barras = alt.Chart(chart_data).mark_bar().encode(
+                x=alt.X('Período:N', title='Período'),
+                y=alt.Y('Valor:Q', title='Soma do Valor'),
+                color=alt.Color('Valor:Q', title='Valor', scale=alt.Scale(scheme='redyellowgreen', reverse=True)),
+                tooltip=['Período:N', alt.Tooltip('Valor:Q', format=',.2f')]
+            ).properties(
+                title='Soma do Valor por Período'
+            )
         
         return grafico_barras
     except Exception as e:
@@ -981,7 +1208,10 @@ def create_period_chart(df_data):
 
 # OTIMIZAÇÃO: Lazy loading de gráficos - só criar se necessário
 # Criar e exibir gráfico (com cache mais agressivo)
-grafico_barras = create_period_chart(df_filtrado)
+# Verificar se está em modo multi-ano
+multi_ano_ativo = st.session_state.get('multi_ano_mode', False) and len(st.session_state.get('anos_selecionados', [])) > 1
+
+grafico_barras = create_period_chart(df_filtrado, multi_ano_ativo)
 if grafico_barras:
     # Adicionar rótulos com valores nas barras
     rotulos = grafico_barras.mark_text(
@@ -1368,7 +1598,7 @@ if 'Type 07' in df_filtrado.columns:
                 # Converter TODAS as colunas de valor, tratando Categorical de forma segura
                 for col in valor_cols_type07:
                     try:
-                        if pd.api.types.is_categorical_dtype(type07_pivot[col]):
+                        if isinstance(type07_pivot[col].dtype, pd.CategoricalDtype):
                             # Categorical: converter para string primeiro, depois numérico
                             type07_pivot[col] = pd.to_numeric(type07_pivot[col].astype(str), errors='coerce')
                         elif pd.api.types.is_object_dtype(type07_pivot[col]):
@@ -1389,7 +1619,7 @@ if 'Type 07' in df_filtrado.columns:
                 numeric_cols_type07 = []
                 for col in type07_pivot.columns:
                     if col not in ['Type 05', 'Type 06', 'Type 07']:
-                        if pd.api.types.is_numeric_dtype(type07_pivot[col]) and not pd.api.types.is_categorical_dtype(type07_pivot[col]):
+                        if pd.api.types.is_numeric_dtype(type07_pivot[col]) and not isinstance(type07_pivot[col].dtype, pd.CategoricalDtype):
                             numeric_cols_type07.append(col)
                 
                 if len(numeric_cols_type07) > 0:
@@ -1443,7 +1673,7 @@ def criar_tabela_pivot(df):
         # Converter TODAS as colunas de valor, tratando Categorical de forma segura
         for col in valor_cols_pivot:
             try:
-                if pd.api.types.is_categorical_dtype(df_pivot[col]):
+                if isinstance(df_pivot[col].dtype, pd.CategoricalDtype):
                     # Categorical: converter para string primeiro, depois numérico
                     df_pivot[col] = pd.to_numeric(df_pivot[col].astype(str), errors='coerce')
                 elif pd.api.types.is_object_dtype(df_pivot[col]):
@@ -1464,7 +1694,7 @@ def criar_tabela_pivot(df):
         numeric_cols_pivot = []
         for col in df_pivot.columns:
             if col != 'Total':
-                if pd.api.types.is_numeric_dtype(df_pivot[col]) and not pd.api.types.is_categorical_dtype(df_pivot[col]):
+                if pd.api.types.is_numeric_dtype(df_pivot[col]) and not isinstance(df_pivot[col].dtype, pd.CategoricalDtype):
                     numeric_cols_pivot.append(col)
         
         if len(numeric_cols_pivot) > 0:
@@ -1511,29 +1741,69 @@ def formatar_valor(val):
             return ""
     return val
 
-# Aplicar formatação
-styled_pivot = df_pivot_filtered.copy()
-for col in styled_pivot.columns:
-    # Verificar se é coluna numérica (incluindo Categorical que pode ser convertida)
-    if pd.api.types.is_numeric_dtype(styled_pivot[col]):
-        # Converter para float se for Categorical ou outro tipo numérico
-        styled_pivot[col] = pd.to_numeric(styled_pivot[col], errors='coerce')
-        styled_pivot[col] = styled_pivot[col].apply(formatar_valor)
-    elif styled_pivot[col].dtype == 'object':
-        # Verificar se são strings numéricas
-        styled_pivot[col] = styled_pivot[col].apply(formatar_valor)
-    elif styled_pivot[col].dtype.name == 'category':
-        # Converter Categorical para string antes de formatar
-        styled_pivot[col] = styled_pivot[col].astype(str)
-        styled_pivot[col] = styled_pivot[col].apply(formatar_valor)
+df_pivot_view = df_pivot_filtered.copy()
 
-# Remover colunas que ficaram completamente vazias após formatação
-styled_pivot = styled_pivot.loc[:, (styled_pivot != "").any(axis=0)]
-# Remover linhas que ficaram completamente vazias
-styled_pivot = styled_pivot.loc[(styled_pivot != "").any(axis=1), :]
+# Limites para evitar MessageSizeError (payload gigante no browser)
+display_limit_pivot = 200 if is_cloud else 1000
+max_cells_style = 20_000 if is_cloud else 60_000
 
-styled_pivot = styled_pivot.style.map(colorir_valores, subset=pd.IndexSlice[:, :])
-st.dataframe(styled_pivot, use_container_width=True)
+# Ordenar por Total (quando existir) e manter a linha "Total" no final
+try:
+    total_row = df_pivot_view.loc[["Total"]] if "Total" in df_pivot_view.index else None
+    df_no_total = df_pivot_view.drop(index="Total", errors="ignore")
+    if "Total" in df_no_total.columns:
+        df_no_total = df_no_total.sort_values("Total", key=lambda s: s.abs(), ascending=False)
+    if len(df_no_total) > display_limit_pivot:
+        st.info(
+            f"📊 Tabela dinâmica: mostrando {display_limit_pivot:,} de {len(df_no_total):,} USIs (ordem por |Total|)"
+        )
+        df_no_total = df_no_total.head(display_limit_pivot)
+    df_pivot_view = (
+        pd.concat([df_no_total, total_row]) if total_row is not None else df_no_total
+    )
+except Exception:
+    # Se algo falhar, ainda assim limitar para segurança
+    if len(df_pivot_view) > display_limit_pivot:
+        st.info(
+            f"📊 Tabela dinâmica: mostrando {display_limit_pivot:,} de {len(df_pivot_view):,} linhas"
+        )
+        df_pivot_view = df_pivot_view.head(display_limit_pivot)
+
+# Só aplicar Styler (cores) quando a tabela for pequena. Styler pode explodir o payload.
+aplicar_cores = df_pivot_view.size <= max_cells_style
+if not aplicar_cores:
+    st.warning(
+        "⚠️ Tabela grande: cores desativadas para evitar erro de tamanho (Streamlit MessageSizeError)."
+    )
+
+if aplicar_cores:
+    styled_pivot = df_pivot_view.copy()
+    for col in styled_pivot.columns:
+        if pd.api.types.is_numeric_dtype(styled_pivot[col]):
+            styled_pivot[col] = pd.to_numeric(styled_pivot[col], errors='coerce')
+            styled_pivot[col] = styled_pivot[col].apply(formatar_valor)
+        elif styled_pivot[col].dtype == 'object':
+            styled_pivot[col] = styled_pivot[col].apply(formatar_valor)
+        elif styled_pivot[col].dtype.name == 'category':
+            styled_pivot[col] = styled_pivot[col].astype(str)
+            styled_pivot[col] = styled_pivot[col].apply(formatar_valor)
+
+    styled_pivot = styled_pivot.loc[:, (styled_pivot != "").any(axis=0)]
+    styled_pivot = styled_pivot.loc[(styled_pivot != "").any(axis=1), :]
+
+    styled_pivot = styled_pivot.style.map(colorir_valores, subset=pd.IndexSlice[:, :])
+    st.dataframe(styled_pivot, use_container_width=True)
+else:
+    # Exibição leve: manter números (sem Styler). Tenta formatar como moeda via column_config.
+    try:
+        col_cfg = {
+            c: st.column_config.NumberColumn(format="R$ %.2f")
+            for c in df_pivot_view.columns
+            if pd.api.types.is_numeric_dtype(df_pivot_view[c])
+        }
+        st.dataframe(df_pivot_view, use_container_width=True, column_config=col_cfg)
+    except TypeError:
+        st.dataframe(df_pivot_view, use_container_width=True)
 
 # Mostrar estatísticas da filtragem
 linhas_originais = len(df_pivot)
@@ -1611,7 +1881,92 @@ else:
     else:
         st.warning("⚠️ Nenhum registro encontrado.")
 
-st.dataframe(df_display, use_container_width=True)
+# Proteção contra MessageSizeError: reduzir payload enviado ao browser
+# (muitas colunas e/ou textos longos podem estourar o limite mesmo com poucas linhas)
+try:
+    with st.expander("⚙️ Opções de visualização (performance)", expanded=False):
+        modo_leve = st.checkbox(
+            "Modo leve (reduzir tamanho da tabela)",
+            value=True,
+            help="Limita colunas e corta textos longos apenas na visualização.",
+        )
+
+        max_str_len = st.slider(
+            "Tamanho máximo de texto por célula",
+            min_value=40,
+            max_value=400,
+            value=140,
+            step=20,
+            help="Apenas para exibição; não altera os dados exportados.",
+        )
+
+        max_cols_view = st.slider(
+            "Máximo de colunas exibidas",
+            min_value=6,
+            max_value=min(60, max(6, len(df_display.columns))),
+            value=min(18, len(df_display.columns)),
+            step=2,
+            help="Limita a quantidade de colunas enviadas ao navegador.",
+        )
+
+        # Sugestão de colunas úteis (evita Texto/descrições enormes por padrão)
+        colunas_sugeridas = [
+            'Ano', 'Período', 'USI',
+            'Type 05', 'Type 06', 'Type 07',
+            'Fornecedor', 'Fornec.',
+            'Centro cst', 'Nº conta',
+            'Material',
+            'Valor',
+        ]
+        colunas_sugeridas = [c for c in colunas_sugeridas if c in df_display.columns]
+        # Completar com outras colunas (estáveis) até max_cols_view
+        if len(colunas_sugeridas) < max_cols_view:
+            extras = [c for c in df_display.columns if c not in colunas_sugeridas]
+            colunas_default = (colunas_sugeridas + extras)[:max_cols_view]
+        else:
+            colunas_default = colunas_sugeridas[:max_cols_view]
+
+        colunas_escolhidas = st.multiselect(
+            "Colunas para exibir",
+            options=list(df_display.columns),
+            default=colunas_default,
+        )
+
+    # Renderizar a tabela com proteção
+    df_view = df_display
+    if modo_leve:
+        if colunas_escolhidas:
+            df_view = df_view[colunas_escolhidas].copy()
+        else:
+            df_view = df_view.iloc[:, :max_cols_view].copy()
+
+        # Truncar textos longos para reduzir tamanho do payload
+        for col in df_view.columns:
+            if pd.api.types.is_object_dtype(df_view[col]) or df_view[col].dtype.name == 'category':
+                s = df_view[col].astype(str).fillna('')
+                long_mask = s.str.len() > max_str_len
+                if long_mask.any():
+                    s = s.where(~long_mask, s.str.slice(0, max_str_len - 1) + '…')
+                df_view[col] = s
+
+        # Se ainda estiver muito grande, reduzir linhas automaticamente
+        # (heurística: se houver muitas colunas e/ou textos, reduzir linhas ajuda bastante)
+        max_rows_fallback = 500 if is_cloud else 1500
+        if len(df_view) > max_rows_fallback:
+            st.info(
+                f"📉 Modo leve ativo: exibindo {max_rows_fallback:,} de {len(df_view):,} linhas para estabilidade"
+            )
+            df_view = df_view.head(max_rows_fallback)
+
+    # Substituir a tabela anterior pela versão protegida
+    st.dataframe(df_view, use_container_width=True)
+    st.caption(
+        "ℹ️ Se precisar do dataset completo, use o botão de download abaixo (não depende desta visualização)."
+    )
+
+except Exception:
+    # Em caso de qualquer problema no modo leve, mantém comportamento anterior
+    st.dataframe(df_display, use_container_width=True)
 
 # Botão de download da Tabela Filtrada (logo abaixo da tabela)
 if st.button("📥 Baixar Tabela Filtrada", use_container_width=True, key="download_filtered"):
@@ -1972,7 +2327,7 @@ def criar_tabela_types_periodo(df):
         # Converter TODAS as colunas de valor, tratando Categorical de forma segura
         for col in valor_cols_types:
             try:
-                if pd.api.types.is_categorical_dtype(tabela_pivot_raw[col]):
+                if isinstance(tabela_pivot_raw[col].dtype, pd.CategoricalDtype):
                     # Categorical: converter para string primeiro, depois numérico
                     tabela_pivot_raw[col] = pd.to_numeric(tabela_pivot_raw[col].astype(str), errors='coerce')
                 elif pd.api.types.is_object_dtype(tabela_pivot_raw[col]):
@@ -1993,7 +2348,7 @@ def criar_tabela_types_periodo(df):
         numeric_cols_types = []
         for col in tabela_pivot_raw.columns:
             if col not in ['Type 05', 'Type 06', 'Type 07']:
-                if pd.api.types.is_numeric_dtype(tabela_pivot_raw[col]) and not pd.api.types.is_categorical_dtype(tabela_pivot_raw[col]):
+                if pd.api.types.is_numeric_dtype(tabela_pivot_raw[col]) and not isinstance(tabela_pivot_raw[col].dtype, pd.CategoricalDtype):
                     numeric_cols_types.append(col)
         
         if len(numeric_cols_types) > 0:

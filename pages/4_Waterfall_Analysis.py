@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 PLOTLY_AVAILABLE = True
 import os
 import sys
+from datetime import datetime
 
 # Adicionar diretório pai ao path para importar auth_simple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,7 +62,8 @@ def get_base_path():
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-st.set_page_config(page_title="Análise Waterfall - KE5Z", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Análise Waterfall - KE5Z", page_icon="🌊", layout="wide"
 verificar_autenticacao()
 
 # Exibir informação da última extração no topo
@@ -71,6 +73,92 @@ exibir_header_usuario()
 
 # Indicador de navegação no topo
 st.sidebar.markdown("📋 **NAVEGAÇÃO:** Menu de páginas acima ⬆️")
+st.sidebar.markdown("---")
+
+# Seletor de Ano (com suporte multi-ano)
+st.sidebar.markdown("**📅 Seleção de Ano**")
+
+base_path = get_base_path()
+anos_disponiveis = []
+try:
+    ke5z_path = os.path.join(base_path, "KE5Z")
+    if os.path.exists(ke5z_path):
+        anos_disponiveis = [int(d) for d in os.listdir(ke5z_path) 
+                           if os.path.isdir(os.path.join(ke5z_path, d)) and d.isdigit()]
+except Exception:
+    pass
+
+if not anos_disponiveis:
+    anos_disponiveis = [2025, 2026]
+
+anos_disponiveis = sorted(anos_disponiveis, reverse=True)
+
+# Checkbox para habilitar seleção multi-ano
+multi_ano_enabled = st.sidebar.checkbox(
+    "Selecionar múltiplos anos",
+    value=False,
+    help="Habilite para visualizar dados de múltiplos anos",
+    key="waterfall_multi_ano_checkbox"
+)
+
+if multi_ano_enabled:
+    # Determinar default baseado no session_state
+    def get_default_anos():
+        anos_salvos = st.session_state.get('waterfall_anos_selecionados', [])
+        if anos_salvos:
+            # Filtrar apenas anos que estão disponíveis
+            return [a for a in anos_salvos if a in anos_disponiveis] or [anos_disponiveis[0]]
+        ano_atual = st.session_state.get('ano_selecionado')
+        if ano_atual and ano_atual in anos_disponiveis:
+            return [ano_atual]
+        return [anos_disponiveis[0]]
+    
+    # Seleção multi-ano
+    anos_selecionados = st.sidebar.multiselect(
+        "📅 Selecione os anos:",
+        options=anos_disponiveis,
+        default=get_default_anos(),
+        help="Escolha múltiplos anos para análise",
+        key="waterfall_multi_anos_selector"
+    )
+    
+    if not anos_selecionados:
+        st.sidebar.warning("⚠️ Selecione pelo menos um ano")
+        anos_selecionados = [anos_disponiveis[0]]
+    
+    # Ordenar anos selecionados
+    anos_selecionados = sorted(anos_selecionados)
+    
+    # Mostrar anos selecionados
+    st.sidebar.info(f"📊 Anos: {', '.join(map(str, anos_selecionados))}")
+    
+    # Salvar no session_state global
+    ano_selecionado_page = anos_selecionados[0]
+    st.session_state['ano_selecionado'] = ano_selecionado_page
+    st.session_state['waterfall_anos_selecionados'] = anos_selecionados
+    st.session_state['waterfall_multi_ano_mode'] = True
+else:
+    # Seleção de ano único
+    # Determinar índice padrão baseado no session_state global
+    def get_ano_index_waterfall():
+        ano_atual = st.session_state.get('ano_selecionado')
+        if ano_atual and ano_atual in anos_disponiveis:
+            return anos_disponiveis.index(ano_atual)
+        return 0
+    
+    ano_selecionado_page = st.sidebar.selectbox(
+        "📅 Selecione o ano:",
+        options=anos_disponiveis,
+        index=get_ano_index_waterfall(),
+        key="ano_global_waterfall",
+        help="Escolha o ano dos dados a visualizar"
+    )
+    
+    # Atualizar session_state global (sincroniza todas as páginas)
+    st.session_state['ano_selecionado'] = ano_selecionado_page
+    st.session_state['waterfall_anos_selecionados'] = [ano_selecionado_page]
+    st.session_state['waterfall_multi_ano_mode'] = False
+
 st.sidebar.markdown("---")
 
 st.title("🌊 Análise Waterfall - KE5Z")
@@ -105,9 +193,19 @@ st.sidebar.subheader("🗂️ Seleção de Dados")
 # Verificar quais arquivos estão disponíveis
 # CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivos
 base_path = get_base_path()
+anos_disponiveis = []
+try:
+    ke5z_path = os.path.join(base_path, "KE5Z")
+    if os.path.exists(ke5z_path):
+        anos_disponiveis = [int(d) for d in os.listdir(ke5z_path) 
+                           if os.path.isdir(os.path.join(ke5z_path, d)) and d.isdigit()]
+except Exception:
+    pass
+
 arquivos_status = {}
+ano_atual = st.session_state.get('ano_selecionado', datetime.now().year)
 for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
-    caminho = os.path.join(base_path, "KE5Z", nome)
+    caminho = os.path.join(base_path, "KE5Z", str(ano_atual), nome)
     arquivos_status[tipo] = os.path.exists(caminho)
 
 # Opções disponíveis baseadas nos arquivos existentes
@@ -160,13 +258,73 @@ if is_cloud:
                       "Usando arquivos separados para melhor performance no Cloud!")
 
 @st.cache_data(ttl=3600, max_entries=3, persist="disk")
-def load_df(arquivo_tipo="completo") -> pd.DataFrame:
-    """Carrega dados DIRETAMENTE do waterfall para máxima otimização de memória"""
+def load_df_multi_year(arquivo_tipo="completo", anos=None) -> pd.DataFrame:
+    """Carrega e concatena dados de múltiplos anos para Waterfall
+    
+    Args:
+        arquivo_tipo: Tipo de arquivo (completo, main, others)
+        anos: Lista de anos a carregar
+    
+    Returns:
+        DataFrame com dados de todos os anos concatenados com coluna 'Ano' adicionada
+    """
+    
+    if anos is None:
+        anos = st.session_state.get('waterfall_anos_selecionados', [datetime.now().year])
+    
+    if not isinstance(anos, list):
+        anos = [anos]
+    
+    dfs_anos = []
+    anos_carregados = []
+    
+    for ano in anos:
+        try:
+            df = load_df(arquivo_tipo, ano)
+            
+            # Adicionar coluna de ano se não existir
+            if 'Ano' not in df.columns:
+                df['Ano'] = ano
+            
+            # Criar coluna Periodo_Ano no formato "mes/ano"
+            if 'Período' in df.columns:
+                df['Periodo_Ano'] = df['Período'].astype(str) + '/' + str(ano)
+            
+            dfs_anos.append(df)
+            anos_carregados.append(ano)
+            
+        except Exception as e:
+            st.warning(f"⚠️ Não foi possível carregar dados de {ano}: {str(e)}")
+            continue
+    
+    if not dfs_anos:
+        raise FileNotFoundError(f"Nenhum dado foi carregado para os anos: {anos}")
+    
+    # Concatenar todos os dataframes
+    df_combined = pd.concat(dfs_anos, ignore_index=True)
+    
+    if len(anos_carregados) > 1:
+        st.sidebar.success(f"✅ Dados carregados: {', '.join(map(str, anos_carregados))}")
+    
+    return df_combined
+
+@st.cache_data(ttl=3600, max_entries=3, persist="disk")
+def load_df(arquivo_tipo="completo", ano=None) -> pd.DataFrame:
+    """Carrega dados DIRETAMENTE do waterfall para máxima otimização de memória
+    
+    Args:
+        arquivo_tipo: Tipo de arquivo (completo, main, others)
+        ano: Ano dos dados (padrão: ano do session_state ou ano atual)
+    """
+    
+    # Se ano não informado, usar ano do session_state ou ano atual
+    if ano is None:
+        ano = st.session_state.get('ano_selecionado', datetime.now().year)
     
     # USAR APENAS ARQUIVO WATERFALL OTIMIZADO (72% menor!)
     # CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivos
     base_path = get_base_path()
-    arquivo_waterfall = os.path.join(base_path, "KE5Z", "KE5Z_waterfall.parquet")
+    arquivo_waterfall = os.path.join(base_path, "KE5Z", str(ano), "KE5Z_waterfall.parquet")
     if os.path.exists(arquivo_waterfall):
         try:
             df = pd.read_parquet(arquivo_waterfall)
@@ -191,15 +349,24 @@ def load_df(arquivo_tipo="completo") -> pd.DataFrame:
         st.stop()
 
 
-# Carregar dados
-df_base = load_df(opcao_selecionada)
+# Carregar dados (com suporte multi-ano)
+multi_ano_mode = st.session_state.get('waterfall_multi_ano_mode', False)
+anos_selecionados = st.session_state.get('waterfall_anos_selecionados', [datetime.now().year])
+
+if multi_ano_mode and len(anos_selecionados) > 1:
+    # Carregar dados de múltiplos anos
+    df_base = load_df_multi_year(opcao_selecionada, anos_selecionados)
+    st.sidebar.info(f"📊 Total: {len(df_base):,} registros")
+else:
+    # Carregar dados de ano único
+    ano_atual = st.session_state.get('ano_selecionado', datetime.now().year)
+    df_base = load_df(opcao_selecionada, ano_atual)
+    st.sidebar.success(f"✅ Dados de {ano_atual} carregados")
+    if not is_cloud:
+        st.sidebar.info(f"📊 {len(df_base)} registros carregados")
+
 if df_base.empty:
     st.stop()
-
-# Mostrar informações de carregamento
-st.sidebar.success("✅ Dados carregados com sucesso")
-if not is_cloud:
-    st.sidebar.info(f"📊 {len(df_base)} registros carregados")
 
 # Aplicar filtros padrão do projeto
 st.sidebar.title("Filtros")
@@ -289,9 +456,15 @@ st.sidebar.write(f"Número de colunas: {df_filtrado.shape[1]}")
 st.sidebar.write(f"Soma do Valor total: R$ {df_filtrado['Valor'].sum():,.2f}")
 
 # --- Configurações do waterfall ---
-mes_unicos = sort_mes_unique(df_filtrado["Período"].astype(str)) if "Período" in df_filtrado.columns else sort_mes_unique(df_filtrado["mes"].astype(str))
+# Se multi-ano, usar Periodo_Ano, senão usar Período normal
+if multi_ano_mode and 'Periodo_Ano' in df_filtrado.columns:
+    mes_unicos = sorted(df_filtrado['Periodo_Ano'].dropna().astype(str).unique().tolist())
+    col_mes = 'Periodo_Ano'
+else:
+    mes_unicos = sort_mes_unique(df_filtrado["Período"].astype(str)) if "Período" in df_filtrado.columns else sort_mes_unique(df_filtrado["mes"].astype(str))
+    col_mes = "Período" if "Período" in df_filtrado.columns else ("mes" if "mes" in df_filtrado.columns else None)
+
 col_valor = next((c for c in ["valor", "Valor", "Total_Value"] if c in df_filtrado.columns), None)
-col_mes = "Período" if "Período" in df_filtrado.columns else ("mes" if "mes" in df_filtrado.columns else None)
 
 # Dimensão de categoria no mesmo padrão da IA_Unificada
 dims_cat = [c for c in ["categoria", "Type 05", "Type 06", "Type 07", "Fornecedor", "USI"] if c in df_filtrado.columns]
@@ -300,11 +473,18 @@ if not dims_cat or not col_valor or not col_mes:
     st.stop()
 chosen_dim = st.selectbox("Dimensão da categoria:", dims_cat, index=0)
 
+# Seleção de mês inicial e final (com ano se multi-ano)
 col_a, col_b = st.columns(2)
 with col_a:
-    mes_inicial = st.selectbox("Mês inicial:", mes_unicos, index=0)
+    if multi_ano_mode:
+        mes_inicial = st.selectbox("Mês inicial (mes/ano):", mes_unicos, index=0)
+    else:
+        mes_inicial = st.selectbox("Mês inicial:", mes_unicos, index=0)
 with col_b:
-    mes_final = st.selectbox("Mês final:", mes_unicos, index=len(mes_unicos) - 1)
+    if multi_ano_mode:
+        mes_final = st.selectbox("Mês final (mes/ano):", mes_unicos, index=len(mes_unicos) - 1)
+    else:
+        mes_final = st.selectbox("Mês final:", mes_unicos, index=len(mes_unicos) - 1)
 
 # Normalizar categorias (strings limpas) e garantir defaults válidos
 cats_all = sorted([str(x).strip() for x in df_filtrado[chosen_dim].dropna().unique().tolist() if str(x).strip() != ""])
@@ -331,16 +511,26 @@ if mes_inicial == mes_final:
     st.info("Selecione meses diferentes para comparar.")
     st.stop()
 
-# Totais de mês (todas as categorias do df_filtrado)
-total_m1_all = float(df_filtrado[df_filtrado[col_mes].astype(str) == str(mes_inicial)][col_valor].sum())
-total_m2_all = float(df_filtrado[df_filtrado[col_mes].astype(str) == str(mes_final)][col_valor].sum())
-change_all = total_m2_all - total_m1_all
-
-# Filtrar pelas selecionadas
+# Filtrar pelas selecionadas primeiro
 dff = df_filtrado[df_filtrado[chosen_dim].astype(str).isin(cats_sel)].copy()
 
-g1 = (dff[dff[col_mes].astype(str) == str(mes_inicial)].groupby(chosen_dim)[col_valor].sum())
-g2 = (dff[dff[col_mes].astype(str) == str(mes_final)].groupby(chosen_dim)[col_valor].sum())
+# Se multi-ano, usar comparação direta de Periodo_Ano, senão comparação de Período
+if multi_ano_mode and 'Periodo_Ano' in dff.columns:
+    # Multi-ano: comparar diretamente as strings "mes/ano"
+    total_m1_all = float(dff[dff['Periodo_Ano'].astype(str) == str(mes_inicial)][col_valor].sum())
+    total_m2_all = float(dff[dff['Periodo_Ano'].astype(str) == str(mes_final)][col_valor].sum())
+    
+    g1 = (dff[dff['Periodo_Ano'].astype(str) == str(mes_inicial)].groupby(chosen_dim)[col_valor].sum())
+    g2 = (dff[dff['Periodo_Ano'].astype(str) == str(mes_final)].groupby(chosen_dim)[col_valor].sum())
+else:
+    # Ano único: comparação simples por Período
+    total_m1_all = float(dff[dff[col_mes].astype(str) == str(mes_inicial)][col_valor].sum())
+    total_m2_all = float(dff[dff[col_mes].astype(str) == str(mes_final)][col_valor].sum())
+    
+    g1 = (dff[dff[col_mes].astype(str) == str(mes_inicial)].groupby(chosen_dim)[col_valor].sum())
+    g2 = (dff[dff[col_mes].astype(str) == str(mes_final)].groupby(chosen_dim)[col_valor].sum())
+
+change_all = total_m2_all - total_m1_all
 
 labels_cats, values_cats = [], []
 for cat in sorted(set(g1.index).union(set(g2.index))):

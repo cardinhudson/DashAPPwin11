@@ -9,13 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from auth_simple import (verificar_autenticacao, exibir_header_usuario,
                          exibir_info_ultima_extracao, exibir_rodape_versao)
 
-# Configuração da página
-st.set_page_config(
-    page_title="Guia de Empacotamento - Dashboard KE5Z",
-    page_icon="📦",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Guia de Empacotamento - Dashboard KE5Z", page_icon="📦", layout="wide"
 
 # Verificar autenticação
 verificar_autenticacao()
@@ -35,16 +30,16 @@ exibir_header_usuario()
 st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
     <h1 style="color: white; font-size: 3rem; margin: 0;">📦 Guia Definitivo de Empacotamento</h1>
-    <h3 style="color: #f0f0f0; margin: 0;">Dashboard KE5Z Desktop - Versão 4.2</h3>
+    <h3 style="color: #f0f0f0; margin: 0;">Dashboard KE5Z Desktop - Versão 5.0</h3>
     <p style="color: #e0e0e0; font-size: 1.2rem; margin-top: 1rem;">
-        Guia Completo e Unificado para Qualquer IA - Com Portabilidade e Correções de Extração
+        Com Estrutura por Anos (2025/2026) e Seleção Multi-Ano
     </p>
 </div>
 """, unsafe_allow_html=True)
 
 # Renderizar o conteúdo do guia em seções
 st.markdown("# 🚀 GUIA DEFINITIVO DE EMPACOTAMENTO - DASHBOARD KE5Z")
-st.markdown("## Versão 4.2 - Guia Completo e Unificado para Qualquer IA - Com Portabilidade e Correções de Extração")
+st.markdown("## Versão 5.0 - Estrutura por Anos e Seleção Multi-Ano")
 st.markdown("---")
 
 # Índice
@@ -73,6 +68,10 @@ st.markdown("### ✅ **O QUE ESTE GUIA GARANTE**")
 st.markdown("""
 - ✅ Executável standalone funcionando 100%
 - ✅ Compatibilidade total com Windows 10/11
+- ✅ Estrutura de dados por ano (2025, 2026, etc.)
+- ✅ Seleção de ano individual ou múltiplos anos
+- ✅ Gráficos contínuos em modo multi-ano
+- ✅ Auto-criação de pastas por ano na extração
 - ✅ Todas as funcionalidades preservadas
 - ✅ Estrutura de pastas correta (_internal)
 - ✅ Sistema de autenticação funcional
@@ -93,23 +92,34 @@ dist/
     └── _internal/                           # Pasta com TODOS os arquivos bundled
         ├── app.py                           # Scripts Python
         ├── auth_simple.py
-        ├── Extracao.py
-        ├── pages/                           # Páginas Streamlit
-        │   ├── 1_Dash_Mes.py
-        │   ├── 2_IUD_Assistant.py
+        ├── ├── 3_Total_accounts.py
+        │   ├── 4_Waterfall_Analysis.py
+        │   ├── 5_Admin_Usuarios.py
+        │   ├── 6_Extracao_Dados.py
         │   └── ...
-        ├── KE5Z/                            # Dados processados
-        │   ├── KE5Z.parquet
-        │   ├── KE5Z_waterfall.parquet
-        │   └── ...
-        ├── Extracoes/                       # Dados brutos
-        │   ├── KE5Z/
-        │   └── KSBB/
-        ├── arquivos/                        # Arquivos gerados
-        ├── dados_equipe.json                # Configurações (dentro do _internal)
-        ├── Dados SAPIENS.xlsx               # Dados auxiliares
-        ├── Fornecedores.xlsx
-        └── [Todas as DLLs e dependências Python]
+        ├── KE5Z/                            # Dados processados por ano
+        │   ├── 2025/
+        │   │   ├── KE5Z.parquet
+        │   │   ├── KE5Z_main.parquet
+        │   │   ├── KE5Z_others.parquet
+        │   │   └── KE5Z_waterfall.parquet
+        │   └── 2026/
+        │       ├── KE5Z.parquet
+        │       └── ...
+        ├── Extracoes/                       # Arquivos TXT de entrada por ano
+        │   ├── 2025/
+        │   │   ├── KE5Z/
+        │   │   └── KSBB/
+        │   └── 2026/
+        │       ├── KE5Z/
+        │       └── KSBB/
+        └── arquivos/                        # Arquivos Excel por ano
+            ├── 2025/
+            │   ├── KE5Z_LC.xlsx
+            │   ├── KE5Z_pwt.xlsx
+            │   └── KE5Z_veiculos.xlsx
+            └── 2026/
+                └── ...
 """, language="text")
 
 st.markdown("#### **2. Regra de Ouro: Leitura vs Escrita (ATUALIZADA PARA PORTABILIDADE)**")
@@ -178,22 +188,33 @@ DashAPPwin11/                              # Pasta raiz do projeto
 │   ├── 6_Extracao_Dados.py
 │   ├── 7_Sobre_Projeto.py
 │   └── 8_Guia_Empacotamento.py
-├── KE5Z/                                  # ⭐ Dados processados
-│   ├── KE5Z.parquet
-│   ├── KE5Z_main.parquet
-│   ├── KE5Z_others.parquet
-│   ├── KE5Z_waterfall.parquet
-│   └── KE5Z.xlsx
-├── Extracoes/                             # ⭐ Dados brutos
-│   ├── KE5Z/
+├── KE5Z/                                  # ⭐ Dados processados (POR ANO)
+│   ├── 2025/                              # Dados de 2025
 │   │   ├── KE5Z.parquet
-│   │   └── KE5Z.xlsx
-│   └── KSBB/
-├── arquivos/                              # ⭐ Arquivos Excel gerados
-│   ├── KE5Z_LC.xlsx
-│   ├── KE5Z_pwt.xlsx
-│   ├── KE5Z_TC_Ext.xlsx
-│   └── KE5Z_veiculos.xlsx
+│   │   ├── KE5Z_main.parquet
+│   │   ├── KE5Z_others.parquet
+│   │   └── KE5Z_waterfall.parquet
+│   └── 2026/                              # Dados de 2026
+│       ├── KE5Z.parquet
+│       ├── KE5Z_main.parquet
+│       ├── KE5Z_others.parquet
+│       └── KE5Z_waterfall.parquet
+├── Extracoes/                             # ⭐ Dados brutos (POR ANO)
+│   ├── 2025/
+│   │   ├── KE5Z/                          # Arquivos .txt de entrada
+│   │   └── KSBB/                          # Arquivos auxiliares
+│   └── 2026/
+│       ├── KE5Z/                          # Arquivos .txt de entrada
+│       └── KSBB/                          # Arquivos auxiliares
+├── arquivos/                              # ⭐ Arquivos Excel gerados (POR ANO)
+│   ├── 2025/
+│   │   ├── KE5Z_LC.xlsx
+│   │   ├── KE5Z_pwt.xlsx
+│   │   └── KE5Z_veiculos.xlsx
+│   └── 2026/
+│       ├── KE5Z_LC.xlsx
+│       ├── KE5Z_pwt.xlsx
+│       └── KE5Z_veiculos.xlsx
 ├── usuarios.json                          # ⭐ Dados de usuários (EDITÁVEL)
 ├── usuarios_padrao.json                   # ⭐ Backup de usuários (EDITÁVEL)
 ├── dados_equipe.json                      # ⭐ Configurações da equipe
@@ -274,13 +295,8 @@ def get_base_path():
     else:
         return os.path.dirname(os.path.abspath(__file__))
 
-# Configuração da página
-st.set_page_config(
-    page_title="Dashboard KE5Z",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Dashboard KE5Z", page_icon="📊", layout="wide"
 
 # Sistema de autenticação
 if not verificar_login():
@@ -696,28 +712,38 @@ dist/
         │   ├── 7_Sobre_Projeto.py
         │   └── 8_Guia_Empacotamento.py
         │
-        ├── ─── DADOS PROCESSADOS ───
+        ├── ─── DADOS PROCESSADOS (POR ANO) ───
         ├── KE5Z/
-        │   ├── KE5Z.parquet                   # Arquivo principal (3+ milhões de registros)
-        │   ├── KE5Z_main.parquet              # Dados main
-        │   ├── KE5Z_others.parquet            # Dados others
-        │   ├── KE5Z_waterfall.parquet         # Arquivo otimizado (68% menor)
-        │   └── KE5Z.xlsx                      # Backup Excel
+        │   ├── 2025/                          # Dados de 2025
+        │   │   ├── KE5Z.parquet               # Arquivo principal
+        │   │   ├── KE5Z_main.parquet          # Dados main
+        │   │   ├── KE5Z_others.parquet        # Dados others
+        │   │   └── KE5Z_waterfall.parquet     # Arquivo otimizado (68% menor)
+        │   └── 2026/                          # Dados de 2026
+        │       ├── KE5Z.parquet
+        │       ├── KE5Z_main.parquet
+        │       ├── KE5Z_others.parquet
+        │       └── KE5Z_waterfall.parquet
         │
-        ├── ─── DADOS BRUTOS ───
+        ├── ─── DADOS BRUTOS (POR ANO) ───
         ├── Extracoes/
-        │   ├── KE5Z/
-        │   │   ├── KE5Z.parquet
-        │   │   └── KE5Z.xlsx
-        │   └── KSBB/
-        │       └── (arquivos KSBB se existirem)
+        │   ├── 2025/
+        │   │   ├── KE5Z/                      # Arquivos .txt de entrada
+        │   │   └── KSBB/                      # Arquivos auxiliares
+        │   └── 2026/
+        │       ├── KE5Z/                      # Arquivos .txt de entrada
+        │       └── KSBB/                      # Arquivos auxiliares
         │
-        ├── ─── ARQUIVOS GERADOS ───
+        ├── ─── ARQUIVOS GERADOS (POR ANO) ───
         ├── arquivos/
-        │   ├── KE5Z_LC.xlsx
-        │   ├── KE5Z_pwt.xlsx
-        │   ├── KE5Z_TC_Ext.xlsx
-        │   └── KE5Z_veiculos.xlsx
+        │   ├── 2025/
+        │   │   ├── KE5Z_LC.xlsx
+        │   │   ├── KE5Z_pwt.xlsx
+        │   │   └── KE5Z_veiculos.xlsx
+        │   └── 2026/
+        │       ├── KE5Z_LC.xlsx
+        │       ├── KE5Z_pwt.xlsx
+        │       └── KE5Z_veiculos.xlsx
         │
         ├── ─── CONFIGURAÇÕES E DADOS AUXILIARES ───
         ├── dados_equipe.json                  # Configurações da equipe
@@ -805,9 +831,9 @@ st.markdown("""
 - ✅ `auth_simple.py`
 - ✅ `Extracao.py`
 - ✅ `pages/` (pasta com 8 arquivos .py)
-- ✅ **`KE5Z/`** ⚠️ **OBRIGATÓRIO** - Pasta com arquivos .parquet (dados processados)
-- ✅ **`arquivos/`** ⚠️ **OBRIGATÓRIO** - Pasta com arquivos Excel gerados
-- ✅ `Extracoes/` (pasta com dados brutos)
+- ✅ **`KE5Z/`** ⚠️ **OBRIGATÓRIO** - Pasta com arquivos .parquet organizados por ano (2025/, 2026/)
+- ✅ **`arquivos/`** ⚠️ **OBRIGATÓRIO** - Pasta com arquivos Excel gerados por ano (2025/, 2026/)
+- ✅ `Extracoes/` (pasta com dados brutos organizados por ano - 2025/, 2026/)
 - ✅ `dados_equipe.json`
 - ✅ `Dados SAPIENS.xlsx`
 - ✅ `Fornecedores.xlsx`
@@ -816,17 +842,42 @@ st.markdown("""
 - ✅ `streamlit-1.50.0.dist-info/` (metadados)
 """)
 
-st.markdown("#### **⚠️ IMPORTANTE: Pastas KE5Z e arquivos DEVEM estar dentro do _internal**")
+st.markdown("#### **⚠️ IMPORTANTE: Estrutura por Ano**")
 st.markdown("""
-**REGRA CRÍTICA**: As pastas `KE5Z/` e `arquivos/` **DEVEM** ser copiadas para dentro do `_internal/` durante o build.
+**NOVA ESTRUTURA**: A partir da versão 2.0, todas as pastas de dados são organizadas por ano:
 
 **Por quê?**
-- `KE5Z/`: Contém os dados processados (.parquet) que o sistema lê
-- `arquivos/`: Contém os arquivos Excel gerados pela extração
+- 📅 Permite trabalhar com múltiplos anos simultaneamente (2025, 2026, etc.)
+- 🔄 Facilita manutenção e atualização de dados
+- 📊 Separa dados de diferentes períodos de forma organizada
+- ✅ Extração cria automaticamente a estrutura se não existir
 
-**O script `criar_executavel_oficial.bat` já faz isso automaticamente:**
+**Estrutura de Pastas:**
+```
+_internal/
+├── KE5Z/
+│   ├── 2025/          # Dados de 2025
+│   └── 2026/          # Dados de 2026
+├── Extracoes/
+│   ├── 2025/
+│   │   ├── KE5Z/      # Arquivos .txt de entrada
+│   │   └── KSBB/
+│   └── 2026/
+│       ├── KE5Z/
+│       └── KSBB/
+└── arquivos/
+    ├── 2025/          # Excel gerados de 2025
+    └── 2026/          # Excel gerados de 2026
+```
+
+**O script `criar_executavel_oficial.bat` copia toda a estrutura automaticamente:**
 ```batch
 xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y
+xcopy "Extracoes" "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\" /E /I /Y
+xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y
+```
+
+**⚠️ IMPORTANTE**: A extração agora verifica e cria automaticamente as pastas do ano selecionado!
 xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y
 ```
 
@@ -1354,6 +1405,164 @@ with st.expander("### ✅ DISTRIBUIÇÃO"):
     - [ ] Testado em ambiente limpo
     - [ ] Documentação atualizada
     """)
+
+st.markdown("---")
+
+# Nova seção sobre funcionalidades recentes
+st.markdown("## 🆕 FUNCIONALIDADES RECENTES (Versão 5.0)")
+
+st.markdown("### 📅 **Estrutura por Anos**")
+st.markdown("""
+Todas as pastas de dados agora seguem uma estrutura organizada por ano:
+
+**Antes:**
+```
+KE5Z/
+├── KE5Z.parquet
+├── KE5Z_main.parquet
+└── ...
+```
+
+**Depois:**
+```
+KE5Z/
+├── 2025/
+│   ├── KE5Z.parquet
+│   ├── KE5Z_main.parquet
+│   └── KE5Z_waterfall.parquet
+└── 2026/
+    ├── KE5Z.parquet
+    ├── KE5Z_main.parquet
+    └── KE5Z_waterfall.parquet
+```
+
+**Implementado em:**
+- ✅ `KE5Z/` - Dados processados
+- ✅ `Extracoes/` - Arquivos TXT de entrada
+- ✅ `arquivos/` - Arquivos Excel gerados
+""")
+
+st.markdown("### 🔄 **Seleção Multi-Ano no app.py**")
+st.markdown("""
+Nova funcionalidade que permite selecionar múltiplos anos simultaneamente:
+
+**Como usar:**
+1. No sidebar, marque a opção "Selecionar múltiplos anos"
+2. Selecione 2025 e 2026 (ou outros anos disponíveis)
+3. Os dados serão carregados e concatenados automaticamente
+4. Gráficos mensais exibem eixo contínuo: `nov/2025`, `dez/2025`, `jan/2026`, `fev/2026`
+
+**Vantagens:**
+- ✅ Visualização contínua de dados entre anos
+- ✅ Análise de tendências multi-anuais
+- ✅ Gráficos com ordenação cronológica automática
+- ✅ Performance otimizada com cache por ano
+""")
+
+st.markdown("### 🎯 **Seleção Individual de Ano nas Páginas**")
+st.markdown("""
+Todas as páginas analíticas agora possuem seletor de ano:
+
+**Páginas atualizadas:**
+- ✅ `1_Dash_Mes.py` - Dashboard mensal
+- ✅ `2_IUD_Assistant.py` - IUD Assistant
+- ✅ `3_Total_accounts.py` - Total de contas
+- ✅ `4_Waterfall_Analysis.py` - Análise Waterfall
+
+**Funcionamento:**
+- Detecta automaticamente anos disponíveis em `KE5Z/`
+- Sincroniza com `st.session_state['ano_selecionado']`
+- Carrega dados apenas do ano selecionado
+- Cache independente por ano para performance
+""")
+
+st.markdown("### ⚙️ **Auto-Criação de Pastas na Extração**")
+st.markdown("""
+O sistema de extração (`pages/6_Extracao_Dados.py`) agora:
+
+1. **Detecta o ano selecionado** pelo usuário
+2. **Cria automaticamente** as pastas necessárias:
+   - `KE5Z/{ano}/`
+   - `Extracoes/{ano}/KE5Z/`
+   - `Extracoes/{ano}/KSBB/`
+   - `arquivos/{ano}/`
+3. **Define variável de ambiente** `ANO_EXTRACAO` antes da execução
+4. **Processa e salva** dados no diretório correto do ano
+
+**Correção crítica aplicada:**
+- Variável `ANO_EXTRACAO` definida ANTES de thread/subprocess
+- Elimina bug onde sempre extraía para 2025 independente da seleção
+""")
+
+st.markdown("### 📊 **Gráficos Contínuos Multi-Ano**")
+st.markdown("""
+Quando múltiplos anos estão selecionados, o gráfico mensal exibe:
+
+**Exemplo de eixo X:**
+```
+nov/2025 | dez/2025 | jan/2026 | fev/2026 | mar/2026 | abr/2026
+  ████      ████       ████       ████       ████       ████
+```
+
+**Implementação:**
+- Mapeamento de meses para números (1-12)
+- Ordenação cronológica: `ano × 100 + mês`
+- Labels formatados: `mes[:3]/ano`
+- Tooltip mostra período completo e valor
+""")
+
+st.markdown("### 🔧 **Script de Build Atualizado**")
+st.markdown("""
+O arquivo `criar_executavel_oficial.bat` foi completamente renovado:
+
+**Novos recursos:**
+1. ✅ **Verificação de formulários** - Valida submit buttons antes do build
+2. ✅ **Estrutura por ano** - Cria automaticamente `2025/` e `2026/`
+3. ✅ **Dois métodos de build**:
+   - streamlit-desktop-app (recomendado)
+   - PyInstaller com .spec (avançado)
+4. ✅ **Verificações completas** - Checa todas as pastas críticas
+5. ✅ **Mensagens claras** - Progresso em 6 etapas com [1/6], [2/6], etc.
+6. ✅ **Relatório final** - Lista estrutura e local do executável
+
+**Saída do script:**
+```
+[1/6] Verificando formularios Streamlit...
+[OK] Todos os formularios verificados
+
+[2/6] Limpando builds anteriores...
+[OK] Limpeza concluida
+
+[3/6] Criando executavel...
+[OK] Executavel criado com sucesso!
+
+[4/6] Copiando dados para _internal...
+[OK] KE5Z copiada
+[OK] Extracoes copiada
+[OK] arquivos copiada
+[OK] pages copiada
+[OK] Configuracoes copiadas
+
+[5/6] Copiando arquivos editaveis...
+[OK] Arquivos editaveis copiados
+
+[6/6] Verificacao final...
+[OK] Executavel: OK
+[OK] Pasta _internal: OK
+[OK] Pasta KE5Z\\2025: OK
+[OK] Pasta KE5Z\\2026: OK
+[OK] Pasta pages: OK
+
+[OK] BUILD CONCLUIDO COM SUCESSO!
+
+ESTRUTURA POR ANO:
+  - KE5Z/2025/ e KE5Z/2026/
+  - Extracoes/2025/ e Extracoes/2026/
+  - arquivos/2025/ e arquivos/2026/
+
+NOTA: A extracao cria automaticamente as pastas do ano selecionado
+```
+""")
 
 st.markdown("---")
 

@@ -43,6 +43,17 @@ prompt = Dash
 print(f"Python ativo: {sys.executable}")
 print(f"Diretorio: {os.getcwd()}")
 
+# ================== CONFIGURAÇÃO DE ANO ==================
+from datetime import datetime
+
+# Detectar se está rodando no Streamlit (com seletor de ano)
+# PADRÃO: 2025 para dados atuais (até o ano anterior ao ano atual)
+ANO_SELECIONADO = os.environ.get('ANO_EXTRACAO', '2025')
+
+print(f"\n{'='*80}")
+print(f"📅 ANO SELECIONADO PARA EXTRAÇÃO: {ANO_SELECIONADO}")
+print(f"{'='*80}\n")
+
 # ================== FUNÇÃO PORTÁVEL PARA CAMINHOS ==================
 def get_base_path():
     """Retorna o caminho base correto para LEITURA de dados (PORTÁVEL)
@@ -118,6 +129,41 @@ if hasattr(sys, '_MEIPASS'):
     print(f"Executando no PyInstaller - pasta _internal: {sys._MEIPASS}")
     print(f"Pasta do executável: {os.path.dirname(sys.executable)}")
 
+# ================== FUNÇÃO PARA CRIAR ESTRUTURA DE PASTAS ==================
+def criar_estrutura_pastas(ano):
+    """Cria toda a estrutura de pastas necessária para um ano específico"""
+    root_dir = get_base_path()
+    output_dir = get_output_path()
+    
+    print(f"\n📁 Verificando/criando estrutura de pastas para o ano {ano}...")
+    
+    # Pastas de entrada
+    dir_extracoes = os.path.join(root_dir, "Extracoes")
+    dir_ke5z_in = os.path.join(dir_extracoes, str(ano), "KE5Z")
+    dir_ksbb_in = os.path.join(dir_extracoes, str(ano), "KSBB")
+    
+    # Pastas de saída
+    dir_ke5z_out = os.path.join(output_dir, "KE5Z", str(ano))
+    dir_arquivos_out = os.path.join(output_dir, "arquivos", str(ano))
+    
+    # Criar todas as pastas
+    pastas_criadas = []
+    for pasta, descricao in [
+        (dir_ke5z_in, f"Entrada KE5Z/{ano}"),
+        (dir_ksbb_in, f"Entrada KSBB/{ano}"),
+        (dir_ke5z_out, f"Saída KE5Z/{ano}"),
+        (dir_arquivos_out, f"Saída arquivos/{ano}"),
+    ]:
+        if not os.path.exists(pasta):
+            os.makedirs(pasta, exist_ok=True)
+            pastas_criadas.append(descricao)
+            print(f"   ✅ Criada: {descricao}")
+    
+    if not pastas_criadas:
+        print(f"   ✅ Todas as pastas para {ano} já existem")
+    
+    return dir_ke5z_in, dir_ksbb_in, dir_ke5z_out, dir_arquivos_out
+
 # ================== CAMINHOS PADRONIZADOS (PORTÁVEIS) ==================
 # Pasta raiz do projeto (para ENTRADA - dentro do _internal)
 ROOT_DIR = get_base_path()
@@ -125,43 +171,49 @@ ROOT_DIR = get_base_path()
 # Pasta raiz para SAÍDA (no diretório do executável para portabilidade)
 OUTPUT_DIR = get_output_path()
 
-# Pastas de entrada (dentro do _internal)
-DIR_EXTRACOES = os.path.join(ROOT_DIR, "Extracoes")
-DIR_KE5Z_IN = os.path.join(DIR_EXTRACOES, "KE5Z")
-DIR_KSBB_IN = os.path.join(DIR_EXTRACOES, "KSBB")
+# Criar estrutura de pastas para o ano selecionado
+DIR_KE5Z_IN, DIR_KSBB_IN, DIR_KE5Z_OUT, DIR_ARQUIVOS_OUT = criar_estrutura_pastas(ANO_SELECIONADO)
 
 # Arquivos auxiliares de entrada (dentro do _internal)
 ARQ_SAPIENS = os.path.join(ROOT_DIR, "Dados SAPIENS.xlsx")
 ARQ_FORNECEDORES = os.path.join(ROOT_DIR, "Fornecedores.xlsx")
 
-# Pastas/arquivos de saída (dentro do _internal)
-DIR_KE5Z_OUT = os.path.join(OUTPUT_DIR, "KE5Z")
-DIR_ARQUIVOS_OUT = os.path.join(OUTPUT_DIR, "arquivos")
+print(f"\n{'='*80}")
+print(f"📅 ANO SELECIONADO: {ANO_SELECIONADO}")
+print(f"{'='*80}")
+print(f"📁 Pasta de entrada KE5Z: {DIR_KE5Z_IN}")
+print(f"📁 Pasta de saída KE5Z: {DIR_KE5Z_OUT}")
+print(f"📁 Pasta de arquivos: {DIR_ARQUIVOS_OUT}")
+print(f"{'='*80}")
 # ======================================================================
 
 import pandas as pd
 
 # Obter diretório base (onde está o executável) - PORTÁVEL
 base_dir = get_base_path()
-print(f"Diretório base (portável): {base_dir}")
+print(f"\n🔍 Diretório base (portável): {base_dir}")
 
-# Usar pasta local do projeto: Extracoes\KE5Z
+# Usar pasta do ano selecionado: Extracoes\{ANO}\KE5Z
 pasta = DIR_KE5Z_IN
+print(f"📂 Buscando arquivos .txt em: {pasta}")
 
-# Verificar se a pasta local existe
-if not os.path.exists(pasta):
-    print(f"ERRO: Pasta local {pasta} não encontrada!")
-    print(f"Pasta procurada: {os.path.abspath(pasta)}")
-    if hasattr(sys, '_MEIPASS'):
-        print(f"Pasta _internal: {sys._MEIPASS}")
-        print(f"Pasta do executável: {os.path.dirname(sys.executable)}")
-    print("Criando pasta local...")
-    os.makedirs(pasta, exist_ok=True)
-    print(f"Pasta local criada: {os.path.abspath(pasta)}")
-    print("Coloque os arquivos .txt na pasta Extracoes/KE5Z/ do projeto")
+# Verificar arquivos na pasta
+arquivos_txt_encontrados = [f for f in os.listdir(pasta) if f.endswith('.txt')] if os.path.exists(pasta) else []
+
+if not arquivos_txt_encontrados:
+    print(f"\n⚠️  AVISO: Nenhum arquivo .txt encontrado na pasta do ano {ANO_SELECIONADO}!")
+    print(f"📁 Pasta: {os.path.abspath(pasta)}")
+    print(f"\n💡 INSTRUÇÕES:")
+    print(f"   1. Coloque os arquivos .txt na pasta: Extracoes/{ANO_SELECIONADO}/KE5Z/")
+    print(f"   2. Execute o script novamente")
+    print(f"\n✅ A estrutura de pastas já foi criada automaticamente.")
     exit(1)
 
-print(f"Pasta encontrada: {pasta}")
+print(f"✅ Pasta encontrada com {len(arquivos_txt_encontrados)} arquivo(s) .txt")
+for arq in arquivos_txt_encontrados[:3]:
+    print(f"   • {arq}")
+if len(arquivos_txt_encontrados) > 3:
+    print(f"   ... e mais {len(arquivos_txt_encontrados) - 3} arquivos")
 
 # ================== FUNÇÃO DE DETECÇÃO AUTOMÁTICA DE CABEÇALHO ==================
 def detectar_linha_cabecalho(caminho_arquivo, max_linhas=20):
@@ -248,11 +300,274 @@ def validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
         return False
     
     # Verificar se não tem muitas colunas vazias (indica problema na leitura)
-    colunas_nao_vazias = sum(1 for col in df_temp.columns if df_temp[col].notna().any())
+    # Usa iloc para evitar erro com colunas de nomes duplicados/vazios
+    try:
+        colunas_nao_vazias = sum(1 for i in range(len(df_temp.columns)) if df_temp.iloc[:, i].notna().any())
+    except Exception:
+        # Fallback: se não conseguir verificar, assumir que está OK
+        colunas_nao_vazias = len(df_temp.columns)
+    
     if colunas_nao_vazias < min_colunas:
         return False
     
     return True
+
+
+def ler_arquivo_robusto(caminho_arquivo, skiprows=9, encoding='latin1', sep='\t'):
+    """Lê arquivo TSV de forma robusta, sem perder linhas por problemas de parsing.
+    
+    O pandas com on_bad_lines='skip' ou mesmo com handler pode perder linhas
+    quando há inconsistências no número de campos. Esta função lê manualmente
+    e garante que TODAS as linhas são processadas.
+    
+    Também filtra linhas de totalização do SAP (linhas que começam com * ou **
+    na segunda coluna).
+    
+    Returns:
+        pd.DataFrame com todas as linhas do arquivo (exceto totalizações)
+    """
+    with open(caminho_arquivo, 'r', encoding=encoding, errors='replace') as f:
+        linhas = f.readlines()
+    
+    # Header
+    header_line = linhas[skiprows]
+    colunas = [c.strip() for c in header_line.rstrip('\r\n').split(sep)]
+    n_cols = len(colunas)
+    
+    # Renomear colunas vazias/duplicadas para evitar erros de parquet
+    colunas_vistas = {}
+    colunas_unicas = []
+    for i, col in enumerate(colunas):
+        if col == '' or col is None:
+            col = f'Unnamed: {i}'
+        if col in colunas_vistas:
+            colunas_vistas[col] += 1
+            col = f'{col}_{colunas_vistas[col]}'
+        else:
+            colunas_vistas[col] = 0
+        colunas_unicas.append(col)
+    colunas = colunas_unicas
+    
+    # Processar dados
+    dados = []
+    linhas_totalizacao = 0
+    for ln in linhas[skiprows + 1:]:
+        if not ln.strip():
+            continue  # Pular linhas vazias
+        campos = ln.rstrip('\r\n').split(sep)
+        
+        # Filtrar linhas de totalização do SAP (segunda coluna começa com *)
+        if len(campos) > 1 and campos[1].strip().startswith('*'):
+            linhas_totalizacao += 1
+            continue
+        
+        # Preencher campos faltantes
+        while len(campos) < n_cols:
+            campos.append('')
+        # Truncar campos excedentes
+        if len(campos) > n_cols:
+            campos = campos[:n_cols]
+        dados.append(campos)
+    
+    if linhas_totalizacao > 0:
+        print(f"   📊 Filtradas {linhas_totalizacao} linhas de totalização SAP (* e **)")
+    
+    df = pd.DataFrame(dados, columns=colunas)
+    return df
+
+
+def criar_handler_on_bad_lines(caminho_arquivo, skiprows=0, encoding='latin1', sep='\t'):
+    """Cria um handler para `on_bad_lines` que NÃO descarta linhas.
+
+    Motivação:
+    - Alguns exports do SAP não incluem delimitadores finais para colunas vazias.
+      Isso faz o pandas considerar a linha "mal formada" e, se `on_bad_lines='skip'`,
+      ele descarta a linha inteira, derrubando o total.
+
+    Estratégia:
+    - Se a linha tiver menos campos que o cabeçalho: completar com campos vazios.
+    - Se a linha tiver mais campos: tentar mesclar excedente na coluna "Texto" (se existir);
+      se não for possível, truncar.
+    """
+    try:
+        with open(caminho_arquivo, 'r', encoding=encoding, errors='replace') as f:
+            for _ in range(int(skiprows) if skiprows else 0):
+                next(f, None)
+            header_line = next(f, '')
+        header_cols = [c.strip() for c in header_line.rstrip('\n').split(sep)]
+        expected = len(header_cols)
+        texto_idx = None
+        for i, c in enumerate(header_cols):
+            if c.strip().lower() == 'texto':
+                texto_idx = i
+                break
+    except Exception:
+        # Fallback conservador: não tentar corrigir nada se não conseguir ler cabeçalho
+        expected = None
+        texto_idx = None
+
+    stats = {
+        'linhas_curta': 0,
+        'linhas_longa': 0,
+        'linhas_truncadas': 0,
+    }
+
+    def _handler(fields):
+        # Se não sabemos o tamanho esperado, mantenha o comportamento padrão de descartar.
+        # (melhor do que produzir linha inconsistente)
+        if not expected:
+            return None
+
+        if len(fields) < expected:
+            stats['linhas_curta'] += 1
+            return fields + [''] * (expected - len(fields))
+
+        if len(fields) > expected:
+            stats['linhas_longa'] += 1
+            if texto_idx is not None and 0 <= texto_idx < expected:
+                tail_len = expected - (texto_idx + 1)
+                tail = fields[-tail_len:] if tail_len > 0 else []
+                mid_end = len(fields) - tail_len
+                merged_text = ' '.join(fields[texto_idx:mid_end])
+                fixed = fields[:texto_idx] + [merged_text] + tail
+                if len(fixed) == expected:
+                    return fixed
+
+            stats['linhas_truncadas'] += 1
+            return fields[:expected]
+
+        return fields
+
+    return _handler, stats
+
+
+def _parse_num_ptbr(valor_texto):
+    """Converte números no formato pt-BR (1.234,56) para float.
+
+    Aceita também:
+    - negativos com '-' no final (ex.: 1.234,56-)
+    - negativos entre parênteses (ex.: (1.234,56))
+    """
+    import re
+
+    if valor_texto is None:
+        return None
+    s = str(valor_texto).replace('\u00a0', ' ').strip()
+    if not s:
+        return None
+
+    s = s.replace('R$', '').strip()
+
+    # 1.234,56-  -> -1.234,56
+    if s.endswith('-'):
+        core = s[:-1].strip()
+        if core.replace('.', '').replace(',', '').isdigit():
+            s = '-' + core
+
+    # (1.234,56) -> -1.234,56
+    if s.startswith('(') and s.endswith(')'):
+        inner = s[1:-1].strip()
+        if inner.replace('.', '').replace(',', '').isdigit():
+            s = '-' + inner
+
+    # Manter só dígitos, separadores e sinal
+    s = re.sub(r'[^0-9,\.\-]', '', s)
+    if not s:
+        return None
+
+    s = s.replace('.', '').replace(',', '.')
+    try:
+        return float(s)
+    except Exception:
+        return None
+
+
+def extrair_totais_rodape_txt(caminho_arquivo, encoding='latin1', max_bytes=262144):
+    """Tenta extrair totais do rodapé do arquivo .txt (se existir).
+
+    Observação: alguns exports trazem totais em linhas começando com '*' e '**'
+    (sem a palavra "Total"). Em alguns casos a linha também termina com um
+    indicador (ex.: 'S' ou 'H').
+
+    Retorno: lista de dicts com chaves:
+    - valor: float
+    - marcador: '*', '**' ou None
+    - dc: 'S'/'H' quando detectado, senão None
+    """
+    import os
+    import re
+
+    try:
+        with open(caminho_arquivo, 'rb') as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - max_bytes), os.SEEK_SET)
+            data = f.read()
+        texto = data.decode(encoding, errors='replace')
+    except Exception:
+        return []
+
+    linhas = [ln.strip() for ln in texto.splitlines() if ln.strip()]
+    if not linhas:
+        return []
+
+    # Número pt-BR típico
+    num_re = re.compile(r'-?\d{1,3}(?:\.\d{3})*,\d{2}')
+
+    totais = []
+
+    def _try_extract_dc(line: str):
+        # tenta achar um token final "S" ou "H" (geralmente após tabs)
+        parts = [p.strip() for p in line.split('\t') if p.strip()]
+        if parts:
+            last = parts[-1]
+            if last in ('S', 'H'):
+                return last
+        return None
+
+    # 0) Linhas de totalização com '*' / '**' (padrão visto no KE5Z)
+    for line in reversed(linhas[-300:]):
+        s = line.lstrip()
+        if s.startswith('*'):
+            nums = num_re.findall(line)
+            if nums:
+                val = _parse_num_ptbr(nums[-1])
+                if val is not None:
+                    marcador = '**' if s.startswith('**') else '*'
+                    totais.append({
+                        'valor': float(val),
+                        'marcador': marcador,
+                        'dc': _try_extract_dc(line),
+                    })
+            # Se já pegou 3 totais, para
+            if len(totais) >= 3:
+                break
+
+    if totais:
+        # Retornar na ordem em que aparecem no arquivo (primeiro '*' depois '**')
+        return list(reversed(totais))
+
+    # 1) Buscar linhas de totalização por keyword
+    keywords = (
+        'total', 'som', 'soma', 'sum', 'gesam', 'saldo', 'total geral', 'grand total'
+    )
+
+    # Priorizar linhas com keyword e número
+    for line in reversed(linhas[-300:]):
+        low = line.lower()
+        if any(k in low for k in keywords):
+            nums = num_re.findall(line)
+            if nums:
+                val = _parse_num_ptbr(nums[-1])
+                if val is not None:
+                    totais.append({
+                        'valor': float(val),
+                        'marcador': None,
+                        'dc': _try_extract_dc(line),
+                    })
+                    break
+
+    return totais
 
 # ================== FUNÇÃO DE ANÁLISE DE CONSISTÊNCIA DE ARQUIVOS ==================
 def analisar_consistencia_arquivos(pasta_arquivos, tipo="KE5Z", max_arquivos=5):
@@ -526,9 +841,9 @@ def padronizar_colunas(df, arquivo_nome=""):
         # Coluna 'Cliente'
         'Cliente': ['cliente', 'Cliente', 'CLIENTE'],
         
-        # Coluna 'doc.ref'
+        # Coluna 'doc.ref' (no arquivo original aparece como 'Doc.ref.')
         'doc.ref': ['doc.ref', 'doc.ref.', 'Doc.ref.', 'Doc.ref', 'DOC.REF', 'DOC.REF.',
-                   'documento', 'Documento', 'DOCUMENTO', 'doc ref', 'Doc Ref'],
+                   'documento', 'Documento', 'DOCUMENTO', 'doc ref', 'Doc Ref', 'Doc.Ref.'],
         
         # Coluna 'Dt.lçto.'
         'Dt.lçto.': ['dt.lçto.', 'Dt.lçto.', 'DT.LÇTO.', 'data', 'Data', 'DATA',
@@ -624,6 +939,11 @@ resultado_analise_ke5z = analisar_consistencia_arquivos(pasta, tipo="KE5Z", max_
 # Lista para armazenar os DataFrames
 dataframes = []
 
+# Checagem opcional: comparar soma calculada vs total no rodapé do .txt (quando existir)
+checagens_totais_txt = []
+rodapes_detectados_txt = 0
+rodapes_ignorados_txt = 0
+
 # Iterar sobre todos os arquivos na pasta (sem limite de quantidade)
 arquivos_txt = [f for f in os.listdir(pasta) if f.endswith('.txt')]
 # Ordenar arquivos por nome para garantir ordem consistente
@@ -651,60 +971,74 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         if linha_detectada is not None:
             print(f"   🔍 Cabeçalho detectado automaticamente na linha {linha_detectada + 1}")
         
-        # ETAPA 2: Construir lista de tentativas de skiprows (priorizar detecção automática)
-        skiprows_tentativas = []
+        skiprows_usar = linha_detectada if linha_detectada is not None else 9
         
-        # Adicionar linha detectada automaticamente no início (se encontrada)
-        if linha_detectada is not None:
-            skiprows_tentativas.append(linha_detectada)
-            # Adicionar variações próximas da linha detectada
-            for offset in [-2, -1, 1, 2]:
-                valor = linha_detectada + offset
-                if 0 <= valor <= 20 and valor not in skiprows_tentativas:
+        # ETAPA 2: Usar leitura robusta (não perde linhas)
+        # A função ler_arquivo_robusto lê manualmente o arquivo e garante que
+        # TODAS as linhas são processadas, mesmo com inconsistências de campos
+        try:
+            print(f"   📖 Usando leitura robusta (skiprows={skiprows_usar})...")
+            df = ler_arquivo_robusto(caminho_arquivo, skiprows=skiprows_usar, encoding='latin1', sep='\t')
+            
+            if validar_cabecalho(df, min_colunas=5, min_linhas=1):
+                print(f"   ✅ Arquivo lido com leitura robusta: {len(df):,} linhas")
+            else:
+                print(f"   ⚠️  Leitura robusta não validou cabeçalho, tentando alternativas...")
+                df = None
+        except Exception as e:
+            print(f"   ⚠️  Leitura robusta falhou: {str(e)[:80]}, tentando alternativas...")
+            df = None
+        
+        # ETAPA 3: Fallback - Construir lista de tentativas de skiprows
+        if df is None:
+            skiprows_tentativas = []
+            
+            # Adicionar linha detectada automaticamente no início (se encontrada)
+            if linha_detectada is not None:
+                skiprows_tentativas.append(linha_detectada)
+                # Adicionar variações próximas da linha detectada
+                for offset in [-2, -1, 1, 2]:
+                    valor = linha_detectada + offset
+                    if 0 <= valor <= 20 and valor not in skiprows_tentativas:
+                        skiprows_tentativas.append(valor)
+            
+            # Adicionar valores padrão conhecidos (se ainda não foram adicionados)
+            valores_padrao = [9, 8, 10, 7, 11, 6, 12, 5, 13, 4, 14, 3, 15]
+            for valor in valores_padrao:
+                if valor not in skiprows_tentativas:
                     skiprows_tentativas.append(valor)
+            
+            # Garantir que temos pelo menos alguns valores para tentar
+            if not skiprows_tentativas:
+                skiprows_tentativas = list(range(3, 16))  # Tentar linhas 3 a 15
+            
+            print(f"   🔄 Tentando {len(skiprows_tentativas)} configurações diferentes de cabeçalho...")
         
-        # Adicionar valores padrão conhecidos (se ainda não foram adicionados)
-        valores_padrao = [9, 8, 10, 7, 11, 6, 12, 5, 13, 4, 14, 3, 15]
-        for valor in valores_padrao:
-            if valor not in skiprows_tentativas:
-                skiprows_tentativas.append(valor)
-        
-        # Garantir que temos pelo menos alguns valores para tentar
-        if not skiprows_tentativas:
-            skiprows_tentativas = list(range(3, 16))  # Tentar linhas 3 a 15
-        
-        print(f"   🔄 Tentando {len(skiprows_tentativas)} configurações diferentes de cabeçalho...")
-        
-        # ETAPA 3: Tentar ler com diferentes skiprows
+        # Variáveis para fallback
         melhor_df = None
         melhor_pontuacao = 0
         melhor_skiprows = None
         
-        for skiprows_val in skiprows_tentativas:
+        # Só entra no loop se leitura robusta falhou
+        if df is None:
+          for skiprows_val in skiprows_tentativas:
             try:
-                # Tentar com engine C (mais rápido)
-                # CORREÇÃO: Adicionar tratamento de erros de parsing
-                # Nota: engine='c' pode não suportar on_bad_lines, então vamos tentar primeiro sem
-                try:
-                    df_temp = pd.read_csv(
-                        caminho_arquivo, 
-                        sep='\t', 
-                        skiprows=skiprows_val,
-                        encoding='latin1', 
-                        engine='c',
-                        low_memory=False,
-                        on_bad_lines='skip'  # Pular linhas com erro de parsing
-                    )
-                except TypeError:
-                    # Se engine C não suporta on_bad_lines, tentar sem (pode falhar mas vamos tratar)
-                    df_temp = pd.read_csv(
-                        caminho_arquivo, 
-                        sep='\t', 
-                        skiprows=skiprows_val,
-                        encoding='latin1', 
-                        engine='c',
-                        low_memory=False
-                    )
+                # CORREÇÃO: Usar engine Python PRIMEIRO (mais robusto com linhas mal-formadas)
+                # O engine C silenciosamente descarta linhas com número diferente de colunas
+                on_bad_lines_handler, on_bad_lines_stats = criar_handler_on_bad_lines(
+                    caminho_arquivo,
+                    skiprows=skiprows_val,
+                    encoding='latin1',
+                    sep='\t'
+                )
+                df_temp = pd.read_csv(
+                    caminho_arquivo, 
+                    sep='\t', 
+                    skiprows=skiprows_val,
+                    encoding='latin1', 
+                    engine='python',
+                    on_bad_lines=on_bad_lines_handler
+                )
                 
                 # Validar qualidade do cabeçalho
                 if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
@@ -724,20 +1058,20 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         df = df_temp
                         if skiprows_val != 9:
                             print(f"   ✅ Arquivo lido com skiprows={skiprows_val} (detectado automaticamente)")
+                        if on_bad_lines_stats and any(v > 0 for v in on_bad_lines_stats.values()):
+                            print(f"   🩹 Linhas ajustadas: {on_bad_lines_stats}")
                         break
                         
             except Exception as e:
-                # Se engine C falhou, tentar engine Python para este skiprows
-                # CORREÇÃO: Adicionar tratamento de erros de parsing
+                # Se engine Python falhou, tentar engine C como fallback
                 try:
                     df_temp = pd.read_csv(
                         caminho_arquivo, 
                         sep='\t', 
                         skiprows=skiprows_val,
                         encoding='latin1', 
-                        engine='python',
-                        low_memory=False,
-                        on_bad_lines='skip'  # Pular linhas com erro de parsing
+                        engine='c',
+                        low_memory=False
                     )
                     
                     if validar_cabecalho(df_temp, min_colunas=5, min_linhas=1):
@@ -751,7 +1085,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                             
                         if pontuacao > 100:
                             df = df_temp
-                            print(f"   ✅ Arquivo lido com skiprows={skiprows_val} (engine python)")
+                            print(f"   ✅ Arquivo lido com skiprows={skiprows_val} (engine c - fallback)")
                             break
                 except Exception as e2:
                     # Continuar para próxima tentativa
@@ -768,14 +1102,19 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                 try:
                     print(f"   ⚠️  Tentando leitura sem skiprows (última tentativa)...")
                     # CORREÇÃO: Adicionar tratamento de erros de parsing
+                    on_bad_lines_handler, _ = criar_handler_on_bad_lines(
+                        caminho_arquivo,
+                        skiprows=0,
+                        encoding='latin1',
+                        sep='\t'
+                    )
                     df_temp = pd.read_csv(
                         caminho_arquivo, 
                         sep='\t', 
                         encoding='latin1', 
                         engine='python',
-                        low_memory=False,
                         nrows=100,  # Ler apenas primeiras 100 linhas para testar
-                        on_bad_lines='skip'  # Pular linhas com erro de parsing
+                        on_bad_lines=on_bad_lines_handler
                     )
                     
                     # Procurar linha que parece ser cabeçalho
@@ -784,16 +1123,25 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                         if validar_cabecalho(linha_teste, min_colunas=5, min_linhas=0):
                             # Reler arquivo completo com este skiprows
                             # CORREÇÃO: Adicionar tratamento de erros de parsing
+                            on_bad_lines_handler, on_bad_lines_stats = criar_handler_on_bad_lines(
+                                caminho_arquivo,
+                                skiprows=i,
+                                encoding='latin1',
+                                sep='\t'
+                            )
                             df = pd.read_csv(
                                 caminho_arquivo, 
                                 sep='\t', 
                                 skiprows=i,
                                 encoding='latin1', 
                                 engine='python',
-                                low_memory=False,
-                                on_bad_lines='skip'  # Pular linhas com erro de parsing
+                                on_bad_lines=on_bad_lines_handler
                             )
                             print(f"   ✅ Arquivo lido com skiprows={i} (descoberto na última tentativa)")
+                            if on_bad_lines_stats and any(v > 0 for v in on_bad_lines_stats.values()):
+                                print(
+                                    f"   🩹 Linhas ajustadas (cols faltando/excedentes): {on_bad_lines_stats}"
+                                )
                             break
                 except Exception as e3:
                     pass
@@ -832,6 +1180,20 @@ for i, arquivo in enumerate(arquivos_txt, 1):
             depois_filtro = len(df)
             if antes_filtro != depois_filtro:
                 print(f"   Removidos {antes_filtro - depois_filtro:,} registros com Ano inválido")
+        
+        # CORREÇÃO: Remover linhas de totalização do SAP (* e **)
+        # Essas linhas aparecem com '*' ou '**' em uma das primeiras colunas e não são dados
+        colunas_verificar = [c for c in df.columns if 'unnamed' in c.lower()][:3]
+        if colunas_verificar:
+            antes_total = len(df)
+            mask_totalizacao = pd.Series([False] * len(df), index=df.index)
+            for col in colunas_verificar:
+                mask_totalizacao |= df[col].astype(str).str.strip().str.startswith('*')
+            linhas_totalizacao = mask_totalizacao.sum()
+            if linhas_totalizacao > 0:
+                df = df[~mask_totalizacao].copy()
+                print(f"   Removidas {linhas_totalizacao} linhas de totalização SAP (* e **)")
+        
         print(f"Após filtro Ano: {len(df):,} registros")
         
         # Verificar e processar coluna 'Em MCont.'
@@ -883,6 +1245,106 @@ for i, arquivo in enumerate(arquivos_txt, 1):
         # Imprimir o valor total da coluna 'Em MCont.'
         total_em_mcont = df['Em MCont.'].sum()
         print(f"Total Em MCont. em {arquivo}: {total_em_mcont:,.2f}")
+
+        # Checar totais do rodapé do .txt (se existirem)
+        try:
+            totais_rodape = extrair_totais_rodape_txt(caminho_arquivo)
+            if totais_rodape:
+                rodapes_detectados_txt += 1
+                # Preferir '**' (quando existe), pois geralmente é o subtotal/total mais relevante.
+                totais_rodape_ordenados = sorted(
+                    totais_rodape,
+                    key=lambda x: 0 if x.get('marcador') == '**' else (1 if x.get('marcador') == '*' else 2)
+                )
+
+                total_pos = float(df.loc[df['Em MCont.'] > 0, 'Em MCont.'].sum())
+                total_neg = float(df.loc[df['Em MCont.'] < 0, 'Em MCont.'].sum())
+                total_abs = float(df['Em MCont.'].abs().sum())
+
+                metricas = {
+                    'liquida': float(total_em_mcont),
+                    'positivos': total_pos,
+                    'negativos': total_neg,
+                    'absoluta': total_abs,
+                }
+
+                # Se existir coluna D/C com S/H, checar subtotais como o SAP costuma mostrar
+                # (não usar coluna 'D' aqui: ela não é débito/crédito neste layout)
+                dc_col = None
+                for cand in ['D/C', 'd/c']:
+                    if cand in df.columns:
+                        dc_col = cand
+                        break
+
+                if dc_col:
+                    dc_norm = df[dc_col].astype(str).str.strip().str.upper()
+                    soma_abs_s = float(df.loc[dc_norm == 'S', 'Em MCont.'].abs().sum())
+                    soma_abs_h = float(df.loc[dc_norm == 'H', 'Em MCont.'].abs().sum())
+                    # Convenção típica: S positivo, H negativo
+                    metricas['dc_S'] = soma_abs_s
+                    metricas['dc_H'] = -soma_abs_h
+                    metricas['dc_liquida'] = soma_abs_s - soma_abs_h
+
+                melhor = None
+                for item in totais_rodape_ordenados:
+                    total_rodape = float(item.get('valor'))
+                    tolerancia = max(0.01, abs(total_rodape) * 1e-6)
+
+                    # Se o rodapé traz dc, primeiro tente casar com métrica correspondente
+                    dc = item.get('dc')
+                    candidatos = []
+                    if dc == 'S':
+                        candidatos = [('dc_S', metricas.get('dc_S'))]
+                    elif dc == 'H':
+                        candidatos = [('dc_H', metricas.get('dc_H'))]
+                    else:
+                        candidatos = list(metricas.items())
+
+                    for nome_met, val_met in candidatos:
+                        if val_met is None:
+                            continue
+                        diff = float(val_met) - total_rodape
+                        ok = abs(diff) <= tolerancia
+                        cand = {
+                            'arquivo': arquivo,
+                            'total_rodape': total_rodape,
+                            'marcador': item.get('marcador'),
+                            'dc': dc,
+                            'metrica': nome_met,
+                            'total_calculado': float(val_met),
+                            'diff': float(diff),
+                            'ok': bool(ok),
+                            'tolerancia': float(tolerancia),
+                            'totais_rodape_todos': totais_rodape,
+                        }
+                        if ok:
+                            melhor = cand
+                            break
+                        if melhor is None or abs(cand['diff']) < abs(melhor['diff']):
+                            melhor = cand
+                    if melhor and melhor.get('ok'):
+                        break
+
+                if melhor:
+                    # Verificar se o total calculado bate EXATAMENTE com o rodapé
+                    # (tolerância de centavos para arredondamento de ponto flutuante)
+                    tolerancia_centavos = 0.02  # 2 centavos de tolerância para arredondamento
+                    ok_exato = abs(melhor['diff']) <= tolerancia_centavos
+                    melhor['ok'] = ok_exato
+                    
+                    # Sempre registrar a checagem (não ignorar mais)
+                    checagens_totais_txt.append(melhor)
+                    status = '✅ OK' if ok_exato else '❌ DIVERGENTE'
+                    msg = (
+                        f"   🔎 Checagem rodapé: {status} "
+                        f"(rodapé={melhor['total_rodape']:,.2f}, marcador={melhor.get('marcador')}, "
+                        f"metrica={melhor['metrica']}, calc={melhor['total_calculado']:,.2f}, diff={melhor['diff']:,.2f})"
+                    )
+                    print(msg)
+                    if not ok_exato:
+                        print(f"   💥 ATENÇÃO: Valor extraído NÃO bate com o total do arquivo TXT!")
+        except Exception as e:
+            print(f"   ⚠️  Checagem de rodapé ignorada (erro): {str(e)[:120]}")
         
     except KeyError as e:
         print(f"❌ ERRO DE COLUNA ao processar {arquivo}: {str(e)}")
@@ -903,6 +1365,12 @@ for i, arquivo in enumerate(arquivos_txt, 1):
             skiprows_inicial = linha_detectada if linha_detectada is not None else 9
             
             # Tentar ler com engine Python e pular linhas problemáticas
+            on_bad_lines_handler, on_bad_lines_stats = criar_handler_on_bad_lines(
+                caminho_arquivo,
+                skiprows=skiprows_inicial,
+                encoding='latin1',
+                sep='\t'
+            )
             df = pd.read_csv(
                 caminho_arquivo,
                 sep='\t',
@@ -910,7 +1378,7 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                 encoding='latin1',
                 engine='python',
                 low_memory=False,
-                on_bad_lines='skip'  # Pular linhas com erro
+                on_bad_lines=on_bad_lines_handler
             )
             
             if validar_cabecalho(df, min_colunas=5, min_linhas=1):
@@ -935,6 +1403,8 @@ for i, arquivo in enumerate(arquivos_txt, 1):
                 print(f"{arquivo} processado com sucesso (com tratamento de erros)!")
                 total_em_mcont = df['Em MCont.'].sum() if 'Em MCont.' in df.columns else 0
                 print(f"Total Em MCont. em {arquivo}: {total_em_mcont:,.2f}")
+                if on_bad_lines_stats and any(v > 0 for v in on_bad_lines_stats.values()):
+                    print(f"   🩹 Linhas ajustadas (cols faltando/excedentes): {on_bad_lines_stats}")
                 continue
             else:
                 print(f"   ⚠️  Arquivo processado mas estrutura pode estar incorreta.")
@@ -1073,7 +1543,12 @@ if pasta_ksbb:
                     engine='python',
                     skiprows=3,
                     skipfooter=1,
-                    on_bad_lines='skip'  # Pular linhas com erro de parsing
+                    on_bad_lines=criar_handler_on_bad_lines(
+                        caminho_arquivo,
+                        skiprows=3,
+                        encoding='latin1',
+                        sep='\t'
+                    )[0]
                 )
 
                 # remover espaços em branco dos nomes das colunas
@@ -1719,11 +2194,6 @@ caminho_saida_atualizado = os.path.join(pasta_parquet, 'KE5Z.parquet')
 df_total_parquet.to_parquet(caminho_saida_atualizado, index=False)
 print(f"Arquivo completo salvo: {caminho_saida_atualizado}")
 
-# gerar um arquivo Excel do df_total atualizado com 10k linhas (usar df_total, não df_total_parquet)
-caminho_saida_excel = os.path.join(pasta_parquet, 'KE5Z.xlsx')
-df_total.head(10000).to_excel(caminho_saida_excel, index=False)
-print(f"Arquivo Excel salvo: {caminho_saida_excel}")
-
 # CRIAR ARQUIVO WATERFALL OTIMIZADO (72% menor) - ANTES DA RENOMEAÇÃO
 print("\n=== CRIANDO ARQUIVO WATERFALL OTIMIZADO ===")
 
@@ -1908,54 +2378,68 @@ pasta_arquivos = DIR_ARQUIVOS_OUT
 os.makedirs(pasta_arquivos, exist_ok=True)
 print(f"Pasta de arquivos criada: {pasta_arquivos}")
 
-# Salvar arquivo Excel completo primeiro (DESABILITADO - arquivo muito grande para Excel)
-# caminho_completo = os.path.join(pasta_arquivos, 'KE5Z_completo.xlsx')
-# df_total_excel.to_excel(caminho_completo, index=False)
-print(f"Arquivo Excel completo NÃO salvo (dados muito grandes: {len(df_total_excel):,} linhas > limite Excel 1.048.576)")
-
-# Verificar quais USIs existem nos dados
-usis_disponiveis = df_total_excel['USI'].unique() if 'USI' in df_total_excel.columns else []
-print(f"USIs disponíveis nos dados: {list(usis_disponiveis)}")
-
-# Salvar arquivo Excel com filtro de USI 'Veículos', 'TC Ext' e 'LC' (se existirem)
-usis_veiculos = ['Veículos', 'TC Ext', 'LC']
-usis_veiculos_existentes = [usi for usi in usis_veiculos if usi in usis_disponiveis]
-
-if usis_veiculos_existentes:
-    caminho_veiculos = os.path.join(pasta_arquivos, 'KE5Z_veiculos.xlsx')
-    df_veiculos = df_total_excel[df_total_excel['USI'].isin(usis_veiculos_existentes)].copy()
-    
-    # Salvar diretamente sem conversões adicionais (já foram feitas antes)
-    df_veiculos.to_excel(caminho_veiculos, index=False)
-    print(f"Arquivo Excel Veículos salvo: {caminho_veiculos} ({len(df_veiculos)} registros)")
+# Salvar Excel único quando couber no limite do Excel; caso contrário, particionar por USI
+EXCEL_MAX_ROWS = 1_048_576
+if len(df_total_excel) <= EXCEL_MAX_ROWS:
+    caminho_completo = os.path.join(pasta_arquivos, 'KE5Z.xlsx')
+    df_total_excel.to_excel(caminho_completo, index=False)
+    print(f"Arquivo Excel salvo: {caminho_completo} ({len(df_total_excel):,} linhas)")
 else:
-    print("Nenhuma USI de veículos encontrada nos dados")
+    print(
+        f"Arquivo Excel completo NÃO salvo (dados muito grandes: {len(df_total_excel):,} linhas "
+        f"> limite Excel {EXCEL_MAX_ROWS:,})"
+    )
 
-# Salvar arquivo Excel com filtro de USI 'PWT' (se existir)
-if 'PWT' in usis_disponiveis:
-    caminho_pwt = os.path.join(pasta_arquivos, 'KE5Z_pwt.xlsx')
-    df_pwt = df_total_excel[df_total_excel['USI'] == 'PWT'].copy()
-    
-    # Salvar diretamente sem conversões adicionais
-    df_pwt.to_excel(caminho_pwt, index=False)
-    print(f"Arquivo Excel PWT salvo: {caminho_pwt} ({len(df_pwt)} registros)")
-else:
-    print("USI PWT não encontrada nos dados")
+if len(df_total_excel) > EXCEL_MAX_ROWS:
+    # Verificar quais USIs existem nos dados
+    usis_disponiveis = df_total_excel['USI'].unique() if 'USI' in df_total_excel.columns else []
+    print(f"USIs disponíveis nos dados: {list(usis_disponiveis)}")
 
-# Salvar arquivo Excel separado por USI (apenas USIs que NÃO foram agrupadas)
-if 'USI' in df_total_excel.columns:
-    usis_ja_salvas = set(usis_veiculos_existentes + (['PWT'] if 'PWT' in usis_disponiveis else []))
-    for usi in usis_disponiveis:
-        if pd.notna(usi) and usi != 'Others' and usi not in usis_ja_salvas:
-            # Normalizar nome da USI para evitar duplicação
-            nome_arquivo = usi.replace(" ", "_").replace("/", "_").replace("ç", "c").replace("ã", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
-            caminho_usi = os.path.join(pasta_arquivos, f'KE5Z_{nome_arquivo}.xlsx')
-            df_usi = df_total_excel[df_total_excel['USI'] == usi].copy()
-            
-            if len(df_usi) > 0:
-                # Salvar diretamente sem conversões adicionais
-                df_usi.to_excel(caminho_usi, index=False)
-                print(f"Arquivo Excel {usi} salvo: {caminho_usi} ({len(df_usi)} registros)")
+    # Salvar arquivo Excel com filtro de USI 'Veículos', 'TC Ext' e 'LC' (se existirem)
+    usis_veiculos = ['Veículos', 'TC Ext', 'LC']
+    usis_veiculos_existentes = [usi for usi in usis_veiculos if usi in usis_disponiveis]
+
+    if usis_veiculos_existentes:
+        caminho_veiculos = os.path.join(pasta_arquivos, 'KE5Z_veiculos.xlsx')
+        df_veiculos = df_total_excel[df_total_excel['USI'].isin(usis_veiculos_existentes)].copy()
+
+        df_veiculos.to_excel(caminho_veiculos, index=False)
+        print(f"Arquivo Excel Veículos salvo: {caminho_veiculos} ({len(df_veiculos)} registros)")
+    else:
+        print("Nenhuma USI de veículos encontrada nos dados")
+
+    # Salvar arquivo Excel com filtro de USI 'PWT' (se existir)
+    if 'PWT' in usis_disponiveis:
+        caminho_pwt = os.path.join(pasta_arquivos, 'KE5Z_pwt.xlsx')
+        df_pwt = df_total_excel[df_total_excel['USI'] == 'PWT'].copy()
+
+        df_pwt.to_excel(caminho_pwt, index=False)
+        print(f"Arquivo Excel PWT salvo: {caminho_pwt} ({len(df_pwt)} registros)")
+    else:
+        print("USI PWT não encontrada nos dados")
+
+    # Salvar arquivo Excel separado por USI (apenas USIs que NÃO foram agrupadas)
+    if 'USI' in df_total_excel.columns:
+        usis_ja_salvas = set(usis_veiculos_existentes + (['PWT'] if 'PWT' in usis_disponiveis else []))
+        for usi in usis_disponiveis:
+            if pd.notna(usi) and usi != 'Others' and usi not in usis_ja_salvas:
+                nome_arquivo = (
+                    str(usi)
+                    .replace(" ", "_")
+                    .replace("/", "_")
+                    .replace("ç", "c")
+                    .replace("ã", "a")
+                    .replace("é", "e")
+                    .replace("í", "i")
+                    .replace("ó", "o")
+                    .replace("ú", "u")
+                )
+                caminho_usi = os.path.join(pasta_arquivos, f'KE5Z_{nome_arquivo}.xlsx')
+                df_usi = df_total_excel[df_total_excel['USI'] == usi].copy()
+
+                if len(df_usi) > 0:
+                    df_usi.to_excel(caminho_usi, index=False)
+                    print(f"Arquivo Excel {usi} salvo: {caminho_usi} ({len(df_usi)} registros)")
 
 # Mensagem final com link clicável para a pasta de arquivos Excel
 pasta_arquivos_absoluta = os.path.abspath(pasta_arquivos)
@@ -1972,6 +2456,39 @@ print("   • Arquivos Excel: pasta arquivos/")
 print("")
 print("💡 Dica: Pressione Win+R, cole o caminho e pressione Enter para abrir a pasta!")
 print("="*80)
+
+# Resumo da checagem de totais (rodapé do .txt)
+try:
+    if checagens_totais_txt:
+        ok_all = all(item.get('ok') for item in checagens_totais_txt)
+        divergentes = [item for item in checagens_totais_txt if not item.get('ok')]
+        print("\n" + "="*80)
+        if ok_all:
+            print("💥 Checagem de totais do arquivo OK!")
+            print(f"Arquivos checados com rodapé: {len(checagens_totais_txt)}")
+        else:
+            print("⚠️  Checagem de totais encontrou divergências!")
+            print(f"Arquivos checados com rodapé: {len(checagens_totais_txt)}")
+            print(f"Arquivos divergentes: {len(divergentes)}")
+            for item in divergentes[:10]:
+                print(
+                    f" - {item.get('arquivo')}: "
+                    f"rodapé={item.get('total_rodape'):,.2f} / metrica={item.get('metrica')} / "
+                    f"calc={item.get('total_calculado'):,.2f} (diff={item.get('diff'):,.2f})"
+                )
+            if len(divergentes) > 10:
+                print(f" ... e mais {len(divergentes) - 10} arquivo(s) divergente(s)")
+        print("="*80)
+    else:
+        if rodapes_detectados_txt > 0:
+            print(
+                "\nℹ️  Checagem de totais: rodapé detectado, mas não foi possível validar automaticamente "
+                f"({rodapes_ignorados_txt} arquivo(s) ignorado(s) para evitar falso alarme)."
+            )
+        else:
+            print("\nℹ️  Checagem de totais: nenhum rodapé detectado nos .txt (checagem pulada).")
+except Exception as e:
+    print(f"⚠️  Falha ao resumir checagem de totais: {e}")
 
 # Salvar data/hora da última extração
 try:

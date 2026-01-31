@@ -47,13 +47,8 @@ def excluir_usuario_json(nome_usuario):
     except Exception as e:
         return False, f"❌ Erro ao excluir usuário: {str(e)}"
 
-# Configuração da página
-st.set_page_config(
-    page_title="Admin - Usuários",
-    page_icon="👑",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Admin de Usuários - KE5Z", page_icon="👥", layout="wide"
 
 # Verificar autenticação
 verificar_autenticacao()
@@ -306,7 +301,7 @@ with st.sidebar.expander("📊 Info Sistema", expanded=False):
     usuarios = listar_usuarios_json()
     st.write(f"**Total usuários:** {len(usuarios)}") 
     st.write(f"**Arquivo:** usuarios.json")
+    st.write(f"**Status:** ✅ Funcionando")
 
 # Rodapé com versão
 exibir_rodape_versao()
-    st.write(f"**Status:** ✅ Funcionando")

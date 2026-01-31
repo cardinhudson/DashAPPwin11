@@ -77,13 +77,8 @@ def carregar_foto_base64(foto_base64):
     except:
         return None
 
-# Configuração da página
-st.set_page_config(
-    page_title="Sobre o Projeto - Dashboard KE5Z",
-    page_icon="🎯",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Sobre o Projeto - Dashboard KE5Z", page_icon="🎯", layout="wide"
 
 # Verificar autenticação
 verificar_autenticacao()
@@ -103,12 +98,12 @@ exibir_header_usuario()
 st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem;">
     <h1 style="color: white; font-size: 3rem; margin: 0;">🎯 Dashboard KE5Z</h1>
-    <h3 style="color: #f0f0f0; margin: 0;">Aplicação Desktop Completa</h3>
+    <h3 style="color: #f0f0f0; margin: 0;">Aplicação Desktop Completa v2.04</h3>
     <p style="color: #e0e0e0; font-size: 1.2rem; margin-top: 1rem;">
         Executável independente para análise de dados SAP com extração automática e otimizações avançadas
     </p>
     <p style="color: #d0d0d0; font-size: 1rem; margin-top: 0.5rem;">
-        🖥️ Funciona sem Python instalado • ⚡ Performance otimizada • 🔄 Extração automática • 📊 7 páginas completas
+        🖥️ Funciona sem Python instalado • ⚡ Performance otimizada • 🔄 Extração automática • 📊 9 páginas completas • 🗂️ Multi-ano
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -130,7 +125,7 @@ st.markdown("---")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("💻 Linhas de Código", "4.000+", "Sistema completo")
+    st.metric("💻 Linhas de Código", "4.500+", "Sistema completo")
 
 with col2:
     st.metric("⚡ Otimização", "68%", "Memória reduzida")
@@ -139,7 +134,7 @@ with col3:
     st.metric("📊 Páginas", "9", "Funcionalidades completas")
 
 with col4:
-    st.metric("🖥️ Aplicação", "Desktop", "Executável independente")
+    st.metric("🖥️ Versão", "2.04", "Desktop App")
 
 # Objetivos do Projeto - Movidos para o início
 st.markdown("---")
@@ -150,7 +145,7 @@ st.markdown("""
 - 📈 **Análise avançada de dados financeiros** com visualizações interativas
 - ⚡ **Performance otimizada** para grandes volumes (68% redução de memória)
 - 🔐 **Sistema de autenticação robusto** com administração de usuários
-- 📱 **Interface responsiva** e intuitiva com 7 páginas funcionais
+- 📱 **Interface responsiva** e intuitiva com 9 páginas funcionais
 - 🖥️ **Aplicação Desktop independente:** Executável que funciona em qualquer PC Windows 10/11
 - 🔄 **Extração automática de dados:** Processamento inteligente de arquivos TXT para Parquet otimizado
 - 📊 **Dashboards especializados:** Mensal, Total Accounts, Waterfall Analysis
@@ -159,6 +154,10 @@ st.markdown("""
 - 👑 **Administração:** Gerenciamento completo de usuários
 - 📦 **Transformação inteligente:** Conversão TXT → Parquet (até 10x menor)
 - 🚀 **Portabilidade total:** Aplicação completa em uma única pasta, sem Python
+- 🗂️ **Suporte Multi-ano:** Análise de dados de múltiplos anos (2025, 2026, etc)
+- 📊 **Sistema integrado:** Combina dados de diferentes fontes (KE5Z, KSBB, SAPIENS)
+- 💾 **Cache inteligente:** Sistema multi-nível para performance máxima
+- 🎨 **Interface otimizada:** Design responsivo com filtros avançados
 """)
 
 # Desafio Principal do Projeto
@@ -459,6 +458,8 @@ with col1:
         - **🛡️ Proteção Cloud:** 50.000 linhas máximo
         - **💻 Modo Local:** Até 1M+ linhas (limite Excel)
         - **✅ Filtros garantidos** no download Excel
+        - **🗂️ Suporte Multi-ano:** Visualize dados de 2025, 2026, etc
+        - **📊 Gráficos avançados:** Type 05, Type 06, Type 07 com filtros específicos
         
         ### 📊 Total Accounts (3_Total_accounts.py)
         - **Análise completa** do centro de lucro 02S
@@ -466,12 +467,17 @@ with col1:
         - **Gráficos Type 05 e Type 06** com cores padronizadas
         - **Tabelas dinâmicas** por USI e conta contábil
         - **Interface limpa** sem mensagens de debug
+        - **🗂️ Suporte Multi-ano:** Análise comparativa entre anos
+        - **📊 Métricas consolidadas** com indicadores visuais
         
         ### 🌊 Waterfall Analysis (4_Waterfall_Analysis.py)
         - **Análise de cascata** entre períodos
         - **Visualização de variações** mês a mês
         - **Identificação de trends** e padrões
         - **100% dados waterfall** para performance máxima
+        - **🗂️ Multi-ano:** Selecione múltiplos anos para análise
+        - **📊 Comparação entre períodos** com gráficos interativos
+        - **💡 Insights automáticos** de variações significativas
         """)
 
     with st.expander("🔍 **ANÁLISES AVANÇADAS**", expanded=False):
@@ -484,6 +490,8 @@ with col1:
         - **Interface conversacional** para exploração
         - **🤖 Chat inteligente** com processamento local
         - **🌊 Análise Waterfall** configurável
+        - **🗂️ Multi-ano:** Consultas em múltiplos anos
+        - **📊 Visualizações dinâmicas** geradas automaticamente
         
         ### 📥 Extração de Dados (6_Extracao_Dados.py)
         - **Interface completa** para processamento de arquivos
@@ -492,6 +500,10 @@ with col1:
         - **Geração de arquivos** Parquet otimizados
         - **Monitoramento** de progresso em tempo real
         - **Validação** de dados e tratamento de erros
+        - **🗂️ Estrutura por ano:** Organização automática em pastas anuais
+        - **📊 Merge inteligente:** Combina KE5Z, KSBB e SAPIENS
+        - **⚡ Otimização automática:** Gera 4 arquivos otimizados
+        - **🔄 Filtros de meses:** Selecione quais meses processar
         
         ### 📦 Guia de Empacotamento (8_Guia_Empacotamento.py)
         - **Instruções completas** para criar executáveis
@@ -500,6 +512,17 @@ with col1:
         - **Solução de problemas** comuns
         - **Checklist completo** de verificação
         - **Dicas avançadas** para distribuição
+        - **🖥️ PyInstaller:** Configuração especializada
+        - **📦 Estrutura otimizada:** Mínimo de arquivos externos
+        
+        ### 📖 Guia de Extração (9_Guia_Extracao.py)
+        - **Instruções detalhadas** para extração de dados
+        - **Pré-requisitos** e configuração
+        - **Processo completo** de extração
+        - **Troubleshooting** e soluções
+        - **Best practices** para melhores resultados
+        - **🗂️ Multi-ano:** Como organizar dados por ano
+        - **📊 Formatos suportados:** TXT, CSV, Excel
         """)
 
 with col2:
@@ -563,13 +586,18 @@ with col2:
         - **Estatísticas** e análise de usuários
         - **Edição de perfis** e permissões
         - **Histórico de atividades** dos usuários
+        - **💾 Persistência JSON:** Dados salvos localmente
+        - **🔒 Proteção do admin:** Usuário principal não pode ser excluído
         
-        ### 🔒 Segurança
+        ### 🔒 Segurança e Autenticação
         - **Hash SHA-256** para senhas
         - **Proteção do admin** principal
         - **Validações completas** de entrada
         - **Sessões persistentes** com logout seguro
         - **Controle de acesso** por página
+        - **🌐 Modo de operação:** Cloud ou Completo
+        - **👤 Perfis de usuário:** Admin e Usuário comum
+        - **✅ Sistema de aprovação:** Controle de novos usuários
         """)
 
 st.markdown("---")
@@ -585,7 +613,7 @@ with col1:
         ### 🏗️ Estrutura de Arquivos
         ```
         📦 Dashboard_KE5Z_Desktop/ (Aplicação Desktop Completa)
-        ├── 🖥️ Dashboard_KE5Z_Desktop.exe (Executável)
+        ├── 🖥️ Dashboard_KE5Z_OFICIAL.exe (Executável v2.04)
         ├── 🏠 app.py (Principal)
         ├── 🔐 auth_simple.py (Autenticação)
         ├── 🔄 Extracao.py (Processamento)
@@ -597,20 +625,30 @@ with col1:
         │   ├── 👑 5_Admin_Usuarios.py (Admin Usuários)
         │   ├── 📥 6_Extracao_Dados.py (Extração Dados)
         │   ├── ℹ️ 7_Sobre_Projeto.py (Sobre Projeto)
-        │   └── 📦 8_Guia_Empacotamento.py (Guia Empacotamento)
+        │   ├── 📦 8_Guia_Empacotamento.py (Guia Empacotamento)
+        │   └── 📖 9_Guia_Extracao.py (Guia Extração)
         ├── 📂 _internal/ (Arquivos Internos PyInstaller)
-        │   ├── 📂 KE5Z/ (Dados Gerados)
-        │   │   ├── KE5Z.parquet (Original)
-        │   │   ├── KE5Z_main.parquet (Otimizado)
-        │   │   ├── KE5Z_others.parquet (Separado)
-        │   │   └── KE5Z_waterfall.parquet (68% menor)
-        │   └── 📂 Extracoes/ (Dados de Entrada)
-        │       ├── KE5Z/ (Arquivos .txt)
-        │       └── KSBB/ (Arquivos .txt)
-        ├── 📂 arquivos/ (Excel Específicos)
+        │   ├── 📂 KE5Z/ (Dados por Ano)
+        │   │   ├── 📂 2025/
+        │   │   │   ├── KE5Z.parquet (Original)
+        │   │   │   ├── KE5Z_main.parquet (Otimizado)
+        │   │   │   ├── KE5Z_others.parquet (Separado)
+        │   │   │   └── KE5Z_waterfall.parquet (68% menor)
+        │   │   └── 📂 2026/
+        │   │       └── (mesma estrutura...)
+        │   └── 📂 Extracoes/ (Dados de Entrada por Ano)
+        │       ├── 📂 2025/
+        │       │   ├── 📂 KE5Z/ (Arquivos .txt)
+        │       │   └── 📂 KSBB/ (Arquivos .txt)
+        │       └── 📂 2026/
+        │           └── (mesma estrutura...)
+        ├── 📂 arquivos/ (Excel Específicos por Ano)
+        │   ├── 📂 2025/
+        │   └── 📂 2026/
         ├── 📄 Dados SAPIENS.xlsx
         ├── 📄 Fornecedores.xlsx
-        └── 📄 usuarios.json
+        ├── 📄 usuarios.json
+        └── 📄 versao_projeto.json
         ```
         
         ### 🔧 Tecnologias Utilizadas
@@ -619,27 +657,34 @@ with col1:
         - **Altair & Plotly:** Visualizações interativas
         - **PyArrow:** Performance com Parquet
         - **OpenPyXL:** Exportação Excel
+        - **PyInstaller:** Geração de executáveis
         """)
 
     with st.expander("⚙️ **SCRIPTS DE AUTOMAÇÃO**", expanded=False):
         st.markdown("""
         ### 🚀 Aplicação Desktop
         
-        **🖥️ `Dashboard_KE5Z.exe`** (Executável Principal)
+        **🖥️ `Dashboard_KE5Z_OFICIAL.exe`** (Executável Principal v2.04)
         ```batch
         # Aplicação desktop independente
         # Não requer instalação de Python
-        # Funciona em qualquer PC Windows 11
+        # Funciona em qualquer PC Windows 10/11
         # Interface web integrada
         # Extração automática de dados
+        # Suporte multi-ano completo
+        # Sistema de cache avançado
+        # Portabilidade total
         ```
         
         **📂 Estrutura Portátil**
         ```batch
-        # Pasta "1 - APP" contém tudo
+        # Pasta completa contém tudo
         # Executável + Dados + Dependências
         # Copiar pasta = Instalar aplicação
         # Zero configuração necessária
+        # Estrutura organizada por ano
+        # Dados persistentes em JSON
+        # Cache em disco para performance
         ```
         
         **📜 `Extração.py`** (Processamento)
@@ -649,6 +694,9 @@ with col1:
         # Geração de 4 arquivos otimizados
         # Logs detalhados de progresso
         # Tratamento robusto de erros
+        # Organização automática por ano
+        # Filtro de meses para processar
+        # Estrutura KE5Z/2025/, KE5Z/2026/, etc
         ```
         """)
 
@@ -689,6 +737,9 @@ with col2:
         - **Filtros em cascata** com dependências
         - **Cache otimizado** para performance
         - **Filtros inteligentes:** Apenas valores diferentes de zero
+        - **🗂️ Filtro de ano:** Selecione um ou múltiplos anos
+        - **📊 Multi-seleção:** Filtros com múltiplos valores
+        - **⚡ Performance:** Cache de opções de filtros
         
         ### 📥 Exportações
         - **Excel formatado** com múltiplas opções
@@ -705,7 +756,122 @@ with col2:
         - **Geração de 4 arquivos** otimizados (main, others, waterfall, completo)
         - **Logs detalhados** de progresso e estatísticas
         - **Tratamento robusto** de erros e validações
+        - **🗂️ Organização por ano:** Estrutura automática em pastas anuais
+        - **📊 Múltiplas fontes:** KE5Z, KSBB, SAPIENS
+        - **🔄 Filtro de meses:** Selecione quais meses processar
+        - **⚡ Processamento paralelo:** Otimização de performance
         """)
+
+st.markdown("---")
+
+# Seção de NOVIDADES E ATUALIZAÇÕES RECENTES
+st.subheader("🆕 Novidades e Atualizações Recentes (v2.04)")
+
+with st.expander("✨ **PRINCIPAIS MELHORIAS IMPLEMENTADAS**", expanded=True):
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        ### 🗂️ Suporte Multi-Ano
+        - **Estrutura organizada:** Dados separados por ano (2025/, 2026/, etc)
+        - **Seleção flexível:** Escolha um ou múltiplos anos para análise
+        - **Comparação entre anos:** Análise comparativa de períodos
+        - **Organização automática:** Sistema cria pastas por ano
+        - **Compatibilidade total:** Todas as páginas suportam multi-ano
+        
+        ### 📊 Melhorias nos Dashboards
+        - **Gráficos aprimorados:** Visualizações mais claras e informativas
+        - **Filtros expandidos:** Mais opções de filtragem em todas as páginas
+        - **Performance otimizada:** Carregamento mais rápido de dados
+        - **Interface refinada:** Design mais limpo e intuitivo
+        - **Top N dinâmico:** Selecione 10, 15, 20, 30, 50 ou 100 itens
+        
+        ### ⚡ Otimizações de Performance
+        - **Cache em disco:** Persistência de dados para carregamento rápido
+        - **Compressão inteligente:** Tipos de dados otimizados
+        - **Carregamento sob demanda:** Dados carregados apenas quando necessário
+        - **Memória otimizada:** Redução de 68% no uso de memória
+        - **Processamento paralelo:** Múltiplos arquivos processados simultaneamente
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 🔄 Extração de Dados Aprimorada
+        - **Interface melhorada:** Mais intuitiva e fácil de usar
+        - **Filtro de meses:** Selecione quais meses processar
+        - **Logs detalhados:** Acompanhe cada etapa do processamento
+        - **Validação robusta:** Verificação de dados em múltiplas etapas
+        - **Tratamento de erros:** Mensagens claras e soluções sugeridas
+        - **Progresso em tempo real:** Barra de progresso e estatísticas
+        
+        ### 🖥️ Portabilidade e Compatibilidade
+        - **Executável otimizado:** Menor tamanho, maior compatibilidade
+        - **Detecção inteligente:** Adapta-se ao ambiente automaticamente
+        - **Fallbacks seguros:** Funciona mesmo em situações adversas
+        - **Modo offline:** Funciona sem conexão de internet
+        - **Zero dependências:** Tudo incluído no executável
+        
+        ### 🔐 Segurança e Usuários
+        - **Autenticação aprimorada:** Sistema mais robusto
+        - **Gestão de usuários:** Interface completa de administração
+        - **Controle de acesso:** Páginas restritas por perfil
+        - **Logs de atividade:** Rastreamento de ações dos usuários
+        - **Backup automático:** Dados de usuários preservados
+        """)
+
+with st.expander("🔧 **CORREÇÕES E AJUSTES**", expanded=False):
+    st.markdown("""
+    ### 🐛 Bugs Corrigidos
+    - ✅ Corrigido problema de carregamento em PCs diferentes
+    - ✅ Resolvido erro de cache em modo Cloud
+    - ✅ Ajustado formato de datas para compatibilidade
+    - ✅ Corrigido filtros em cascata em todas as páginas
+    - ✅ Resolvido problema de exportação Excel com dados grandes
+    - ✅ Ajustado carregamento de dados waterfall
+    - ✅ Corrigido problema de encoding em arquivos TXT
+    - ✅ Resolvido erro de memória com datasets grandes
+    
+    ### 🎨 Melhorias de Interface
+    - ✅ Layout mais limpo e organizado
+    - ✅ Cores padronizadas em todos os gráficos
+    - ✅ Mensagens de erro mais claras
+    - ✅ Feedback visual aprimorado
+    - ✅ Navegação mais intuitiva
+    - ✅ Sidebar otimizada com menos poluição visual
+    - ✅ Indicadores de carregamento melhorados
+    - ✅ Responsividade aprimorada
+    
+    ### 📝 Documentação Atualizada
+    - ✅ Guia de empacotamento completo
+    - ✅ Guia de extração detalhado
+    - ✅ Esta página de documentação revisada
+    - ✅ Comentários de código melhorados
+    - ✅ README.md atualizado
+    - ✅ Instruções de instalação simplificadas
+    """)
+
+with st.expander("🔮 **PRÓXIMAS FUNCIONALIDADES PLANEJADAS**", expanded=False):
+    st.markdown("""
+    ### 📅 Em Desenvolvimento
+    - 🔄 **Backup automático de dados** com versionamento
+    - 📊 **Dashboard de KPIs** com métricas customizáveis
+    - 📈 **Previsões e tendências** com machine learning
+    - 🔔 **Sistema de notificações** para eventos importantes
+    - 📧 **Relatórios automáticos** por email
+    - 🎨 **Temas personalizáveis** (claro/escuro)
+    - 🌐 **Multi-idioma** (Português, Inglês, Espanhol)
+    - 📱 **Versão mobile** responsiva
+    
+    ### 💡 Ideias Futuras
+    - 🤖 **IA integrada** para análises preditivas
+    - 📊 **Dashboard customizável** arrastar e soltar
+    - 🔗 **Integração com APIs** externas
+    - 📦 **Módulos plugáveis** para extensibilidade
+    - 🔐 **SSO e LDAP** para autenticação empresarial
+    - 📊 **Power BI integration** para relatórios avançados
+    - 🌟 **Sistema de favoritos** para análises frequentes
+    - 📝 **Anotações e comentários** em gráficos
+    """)
 
 st.markdown("---")
 
@@ -786,15 +952,18 @@ with st.expander("💻 **CÓDIGO E DESENVOLVIMENTO**", expanded=False):
         ### 📝 Estatísticas de Código
         
         **🎯 Principais Arquivos:**
-        - **app.py:** ~730 linhas (Dashboard principal)
+        - **app.py:** ~2.330 linhas (Dashboard principal)
         - **Extração.py:** ~610 linhas (Processamento)
         - **auth_simple.py:** ~450 linhas (Autenticação)
-        - **Dash_Mes.py:** ~800 linhas (Dashboard mensal)
-        - **Total accounts.py:** ~550 linhas (Análise total)
-        - **Waterfall_Analysis.py:** ~400 linhas (Análise cascata)
-        - **IUD_Assistant.py:** ~500 linhas (Assistente IA)
+        - **Dash_Mes.py:** ~856 linhas (Dashboard mensal)
+        - **Total accounts.py:** ~590 linhas (Análise total)
+        - **Waterfall_Analysis.py:** ~602 linhas (Análise cascata)
+        - **IUD_Assistant.py:** ~1.004 linhas (Assistente IA)
+        - **Admin_Usuarios.py:** ~308 linhas (Admin)
+        - **Extracao_Dados.py:** ~828 linhas (Interface extração)
+        - **Sobre_Projeto.py:** ~2.886 linhas (Documentação)
         
-        **📊 Total Estimado:** ~3.500+ linhas de código
+        **📊 Total Estimado:** ~4.500+ linhas de código
         
         **🔧 Funcionalidades Implementadas:**
         - Sistema de cache multi-nível
@@ -807,6 +976,10 @@ with st.expander("💻 **CÓDIGO E DESENVOLVIMENTO**", expanded=False):
         - Interface limpa sem mensagens de debug
         - Top N dinâmico para análises
         - Tabelas pivot otimizadas
+        - Suporte multi-ano completo
+        - Estrutura de pastas por ano
+        - Cache persistente em disco
+        - Portabilidade total (executável)
         """)
     
     with col2:
@@ -864,16 +1037,19 @@ with st.expander("📊 **ARQUITETURA DE DADOS**", expanded=False):
         - `KE5Z.parquet` (~3M registros)
         - Todas as colunas e dados
         - Uso: Backup e dados completos
+        - Estrutura por ano (2025/, 2026/, etc)
         
         **⚡ Arquivos Otimizados:**
         - `KE5Z_main.parquet` (sem Others)
         - `KE5Z_others.parquet` (apenas Others)
         - `KE5Z_waterfall.parquet` (68% menor)
+        - Separados por ano para organização
         
         **🎯 Uso Inteligente:**
         - **Gráficos:** Dados waterfall (rápido)
         - **Tabelas:** Dados originais (completo)
         - **Downloads:** Dados filtrados (relevante)
+        - **Multi-ano:** Seleção de múltiplos anos
         """)
     
     with col2:
@@ -1085,8 +1261,14 @@ else:
 
 # Pastas de entrada (dentro do _internal)
 DIR_EXTRACOES = os.path.join(ROOT_DIR, "Extracoes")
-DIR_KE5Z_IN = os.path.join(DIR_EXTRACOES, "KE5Z")
-DIR_KSBB_IN = os.path.join(DIR_EXTRACOES, "KSBB")
+# Detectar ano mais recente
+ano = 2025  # Padrão para dados atuais
+if os.path.exists(DIR_EXTRACOES):
+    anos = sorted([int(d) for d in os.listdir(DIR_EXTRACOES) if d.isdigit()], reverse=True)
+    if anos:
+        ano = anos[0]
+DIR_KE5Z_IN = os.path.join(DIR_EXTRACOES, str(ano), "KE5Z")
+DIR_KSBB_IN = os.path.join(DIR_EXTRACOES, str(ano), "KSBB")
 
 # Arquivos auxiliares de entrada (dentro do _internal)
 ARQ_SAPIENS = os.path.join(ROOT_DIR, "Dados SAPIENS.xlsx")
@@ -1553,10 +1735,7 @@ caminho_saida_atualizado = os.path.join(pasta_parquet, 'KE5Z.parquet')
 df_total.to_parquet(caminho_saida_atualizado, index=False)
 print(f"Arquivo completo salvo: {caminho_saida_atualizado}")
 
-# gerar um arquivo Excel do df_total atualizado com 10k linhas
-caminho_saida_excel = os.path.join(pasta_parquet, 'KE5Z.xlsx')
-df_total.head(10000).to_excel(caminho_saida_excel, index=False)
-print(f"Arquivo Excel salvo: {caminho_saida_excel}")
+
 
 # CRIAR ARQUIVO WATERFALL OTIMIZADO (72% menor) - ANTES DA RENOMEAÇÃO
 print("\n=== CRIANDO ARQUIVO WATERFALL OTIMIZADO ===")
@@ -1824,13 +2003,8 @@ def get_base_path():
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.abspath(__file__))
 
-# Configuração otimizada da página para melhor performance
-st.set_page_config(
-    page_title="Dashboard KE5Z",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Dashboard KE5Z", page_icon="📊", layout="wide"
 
 # Configurações para otimizar conexão e performance
 if 'connection_optimized' not in st.session_state:
@@ -2424,8 +2598,54 @@ def colorir_valores(val):
             return 'color: #27ae60; font-weight: bold;'  # Verde para positivo
     return ''
 
-styled_pivot = df_pivot_filtered.style.format('R$ {:,.2f}').map(colorir_valores, subset=pd.IndexSlice[:, :])
-st.dataframe(styled_pivot, use_container_width=True)
+df_pivot_view = df_pivot_filtered.copy()
+
+# Limites para evitar MessageSizeError
+display_limit_pivot = 200 if is_cloud else 1000
+max_cells_style = 20_000 if is_cloud else 60_000
+
+# Ordenar por Total (quando existir) e manter a linha "Total" no final
+try:
+    total_row = df_pivot_view.loc[["Total"]] if "Total" in df_pivot_view.index else None
+    df_no_total = df_pivot_view.drop(index="Total", errors="ignore")
+    if "Total" in df_no_total.columns:
+        df_no_total = df_no_total.sort_values("Total", key=lambda s: s.abs(), ascending=False)
+    if len(df_no_total) > display_limit_pivot:
+        st.info(
+            f"📊 Tabela dinâmica: mostrando {display_limit_pivot:,} de {len(df_no_total):,} USIs (ordem por |Total|)"
+        )
+        df_no_total = df_no_total.head(display_limit_pivot)
+    df_pivot_view = (
+        pd.concat([df_no_total, total_row]) if total_row is not None else df_no_total
+    )
+except Exception:
+    if len(df_pivot_view) > display_limit_pivot:
+        st.info(
+            f"📊 Tabela dinâmica: mostrando {display_limit_pivot:,} de {len(df_pivot_view):,} linhas"
+        )
+        df_pivot_view = df_pivot_view.head(display_limit_pivot)
+
+aplicar_cores = df_pivot_view.size <= max_cells_style
+if not aplicar_cores:
+    st.warning(
+        "⚠️ Tabela grande: cores desativadas para evitar erro de tamanho (Streamlit MessageSizeError)."
+    )
+
+if aplicar_cores:
+    styled_pivot = df_pivot_view.style.format('R$ {:,.2f}').map(
+        colorir_valores, subset=pd.IndexSlice[:, :]
+    )
+    st.dataframe(styled_pivot, use_container_width=True)
+else:
+    try:
+        col_cfg = {
+            c: st.column_config.NumberColumn(format="R$ %.2f")
+            for c in df_pivot_view.columns
+            if pd.api.types.is_numeric_dtype(df_pivot_view[c])
+        }
+        st.dataframe(df_pivot_view, use_container_width=True, column_config=col_cfg)
+    except TypeError:
+        st.dataframe(df_pivot_view, use_container_width=True)
 
 # Mostrar estatísticas da filtragem
 linhas_originais = len(df_pivot)
@@ -2872,7 +3092,7 @@ def adicionar_usuario_simples(usuario: str, senha: str, tipo: str) -> tuple[bool
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(45deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-top: 2rem;">
-    <h3 style="color: white; margin: 0;">🎯 Dashboard KE5Z</h3>
+    <h3 style="color: white; margin: 0;">🎯 Dashboard KE5Z v2.04</h3>
     <p style="color: #f0f0f0; margin: 0.5rem 0;">
         Aplicação Desktop completa de análise financeira com extração automática
     </p>
@@ -2880,7 +3100,7 @@ st.markdown("""
         Desenvolvido como executável independente para máxima portabilidade
     </p>
     <p style="color: #d0d0d0; font-size: 0.8rem; margin-top: 1rem;">
-        💻 3.500+ linhas de código • ⚡ 68% otimização • 🖥️ Aplicação Desktop • 🔄 Extração automática • 📊 7 páginas completas • 🎯 15+ filtros avançados
+        💻 4.500+ linhas de código • ⚡ 68% otimização • 🖥️ Aplicação Desktop • 🔄 Extração automática • 📊 9 páginas completas • 🎯 15+ filtros avançados • 🗂️ Multi-ano
     </p>
 </div>
 """, unsafe_allow_html=True)

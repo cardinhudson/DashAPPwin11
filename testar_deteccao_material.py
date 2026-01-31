@@ -161,8 +161,8 @@ def main():
     print("TESTE DE DETECÇÃO DE COLUNA MATERIAL - ARQUIVOS KSBB")
     print("="*70)
     
-    # Pasta de arquivos KSBB
-    pasta_ksbb = os.path.join("Extracoes", "KSBB")
+    # Pasta de arquivos KSBB - com estrutura de ano (2025)
+    pasta_ksbb = os.path.join("Extracoes", "2025", "KSBB")
     
     if not os.path.exists(pasta_ksbb):
         print(f"❌ Pasta não encontrada: {pasta_ksbb}")

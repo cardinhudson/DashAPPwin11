@@ -1,8 +1,11 @@
-# Arquivos de dados grandes (>100MB) - excluídos do Git
-Extracoes/KE5Z/ke5z*.txt
-Extracoes/KSBB/ksbb*.txt
-dist/*/Extracoes/KE5Z/ke5z*.txt
-dist/*/Extracoes/KSBB/ksbb*.txt
+# Arquivos de dados grandes - excluídos do Git
+# Ignora todos os .txt dentro de Extracoes (qualquer subpasta/ano)
+Extracoes/**/*.txt
+KE5Z/**/*.txt
+
+# Também ignora na pasta dist
+dist/**/Extracoes/**/*.txt
+dist/**/KE5Z/**/*.txt
 
 # Arquivos de build e executáveis
 _internal/

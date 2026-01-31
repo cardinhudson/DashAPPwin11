@@ -4,6 +4,7 @@ import os
 import sys
 from io import BytesIO
 import base64
+from datetime import datetime
 
 # Adicionar diretório pai ao path para importar auth_simple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -60,13 +61,8 @@ def get_base_path():
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Configuração da página
-st.set_page_config(
-    page_title="Total Accounts - Dashboard KE5Z",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Total Accounts - KE5Z", page_icon="💰", layout="wide"
 
 # Verificar autenticação - OBRIGATÓRIO no início de cada página
 verificar_autenticacao()
@@ -120,13 +116,22 @@ st.sidebar.info("⚡ **DADOS WATERFALL OTIMIZADOS**\n"
                 "📊 68% menor que arquivo original")
 
 @st.cache_data(ttl=3600, max_entries=3, persist="disk", show_spinner=True)
-def load_data_optimized(arquivo_tipo="completo"):
-    """Carrega dados INTEIRAMENTE do waterfall para máxima otimização de memória"""
+def load_data_optimized(arquivo_tipo="completo", ano=None):
+    """Carrega dados INTEIRAMENTE do waterfall para máxima otimização de memória
+    
+    Args:
+        arquivo_tipo: Tipo de arquivo (completo, main, others)
+        ano: Ano dos dados (padrão: ano do session_state ou ano atual)
+    """
+    
+    # Se ano não informado, usar ano do session_state ou ano atual
+    if ano is None:
+        ano = st.session_state.get('ano_selecionado', datetime.now().year)
     
     # USAR APENAS ARQUIVO WATERFALL OTIMIZADO (68% menor + Nº conta!)
     # CORREÇÃO PORTABILIDADE: Usar get_base_path() para encontrar arquivos
     base_path = get_base_path()
-    arquivo_waterfall = os.path.join(base_path, "KE5Z", "KE5Z_waterfall.parquet")
+    arquivo_waterfall = os.path.join(base_path, "KE5Z", str(ano), "KE5Z_waterfall.parquet")
     if os.path.exists(arquivo_waterfall):
         try:
             df = pd.read_parquet(arquivo_waterfall)
@@ -152,9 +157,48 @@ def load_data_optimized(arquivo_tipo="completo"):
     
 # Função otimizada - usa APENAS waterfall para máxima performance
 
+# Seletor de Ano
+st.sidebar.markdown("---")
+st.sidebar.markdown("**📅 Seleção de Ano**")
+
+base_path = get_base_path()
+anos_disponiveis = []
+try:
+    ke5z_path = os.path.join(base_path, "KE5Z")
+    if os.path.exists(ke5z_path):
+        anos_disponiveis = [int(d) for d in os.listdir(ke5z_path) 
+                           if os.path.isdir(os.path.join(ke5z_path, d)) and d.isdigit()]
+except Exception:
+    pass
+
+if not anos_disponiveis:
+    anos_disponiveis = [2025, 2026]
+
+anos_disponiveis = sorted(anos_disponiveis, reverse=True)
+
+# Determinar índice padrão baseado no session_state global
+def get_ano_index():
+    ano_atual = st.session_state.get('ano_selecionado')
+    if ano_atual and ano_atual in anos_disponiveis:
+        return anos_disponiveis.index(ano_atual)
+    return 0
+
+ano_selecionado_page = st.sidebar.selectbox(
+    "📅 Selecione o ano:",
+    options=anos_disponiveis,
+    index=get_ano_index(),
+    key="ano_global_total_accounts",
+    help="Escolha o ano dos dados a visualizar"
+)
+
+# Atualizar session_state global (sincroniza todas as páginas)
+st.session_state['ano_selecionado'] = ano_selecionado_page
+
 # Carregar dados waterfall otimizados
 try:
-    df_principal = load_data_optimized("completo")  # Sempre usa dados completos do waterfall
+    ano_atual = st.session_state.get('ano_selecionado', datetime.now().year)
+    df_principal = load_data_optimized("completo", ano_atual)  # Sempre usa dados completos do waterfall
+    st.sidebar.success(f"✅ Dados de {ano_atual} carregados")
     st.sidebar.success("✅ Dados waterfall carregados com sucesso")
     if not is_cloud:
         st.sidebar.info(f"📊 {len(df_principal)} registros carregados")

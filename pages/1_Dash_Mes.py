@@ -26,13 +26,8 @@ def get_base_path():
         # Rodando em desenvolvimento
         return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Configuração otimizada da página para melhor performance
-st.set_page_config(
-    page_title="Dashboard KE5Z - Mês",
-    page_icon="📅",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de página removida - apenas app.py deve ter st.set_page_config no modo multi-page
+# page_title="Dashboard KE5Z - Análise Mensal", page_icon="📊", layout="wide"
 
 # Configurações para otimizar conexão e performance
 if 'connection_optimized' not in st.session_state:
@@ -76,16 +71,21 @@ else:
     show_spinner=True,
     persist="disk"
 )
-def load_data_optimized(arquivo_tipo="completo"):
+def load_data_optimized(arquivo_tipo="completo", ano=None):
     """Carrega dados com otimização inteligente de memória - WATERFALL OTIMIZADO
     
     Args:
         arquivo_tipo: "completo", "main" (sem Others), "others", ou "main_filtered"
+        ano: Ano dos dados (padrão: ano do session_state ou ano atual)
     """
+    
+    # Se ano não informado, usar ano do session_state ou ano atual
+    if ano is None:
+        ano = st.session_state.get('ano_selecionado', datetime.now().year)
     
     # PRIORIDADE 1: Tentar arquivo waterfall otimizado (68% menor + Nº conta!)
     base_path = get_base_path()
-    arquivo_waterfall = os.path.join(base_path, "KE5Z", "KE5Z_waterfall.parquet")
+    arquivo_waterfall = os.path.join(base_path, "KE5Z", str(ano), "KE5Z_waterfall.parquet")
     if os.path.exists(arquivo_waterfall):
         try:
             df = pd.read_parquet(arquivo_waterfall)
@@ -112,7 +112,7 @@ def load_data_optimized(arquivo_tipo="completo"):
     }
     
     nome_arquivo = arquivos_disponiveis.get(arquivo_tipo, "KE5Z.parquet")
-    arquivo_parquet = os.path.join(base_path, "KE5Z", nome_arquivo)
+    arquivo_parquet = os.path.join(base_path, "KE5Z", str(ano), nome_arquivo)
     
     try:
         if not os.path.exists(arquivo_parquet):
@@ -120,7 +120,7 @@ def load_data_optimized(arquivo_tipo="completo"):
             if arquivo_tipo != "completo":
                 st.warning(f"⚠️ Arquivo {nome_arquivo} não encontrado, carregando dados completos...")
                 # CORREÇÃO: Evitar loop infinito - carregar diretamente o arquivo completo
-                arquivo_completo = os.path.join(base_path, "KE5Z", "KE5Z.parquet")
+                arquivo_completo = os.path.join(base_path, "KE5Z", str(ano), "KE5Z.parquet")
                 if os.path.exists(arquivo_completo):
                     df = pd.read_parquet(arquivo_completo)
                     # Aplicar filtro especial para main_filtered (cloud mode)
@@ -178,11 +178,44 @@ def load_data_optimized(arquivo_tipo="completo"):
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🗂️ Dados**")
 
-# Verificar quais arquivos estão disponíveis
+# Seletor de Ano
 base_path = get_base_path()
+anos_disponiveis = []
+try:
+    ke5z_path = os.path.join(base_path, "KE5Z")
+    if os.path.exists(ke5z_path):
+        anos_disponiveis = [int(d) for d in os.listdir(ke5z_path) 
+                           if os.path.isdir(os.path.join(ke5z_path, d)) and d.isdigit()]
+except Exception:
+    pass
+
+if not anos_disponiveis:
+    anos_disponiveis = [2025, 2026]
+
+anos_disponiveis = sorted(anos_disponiveis, reverse=True)
+
+# Determinar índice padrão baseado no session_state global
+def get_ano_index():
+    ano_atual = st.session_state.get('ano_selecionado')
+    if ano_atual and ano_atual in anos_disponiveis:
+        return anos_disponiveis.index(ano_atual)
+    return 0
+
+ano_selecionado_page = st.sidebar.selectbox(
+    "📅 Selecione o ano:",
+    options=anos_disponiveis,
+    index=get_ano_index(),
+    key="ano_global_dash_mes",
+    help="Escolha o ano dos dados a visualizar"
+)
+
+# Atualizar session_state global (sincroniza todas as páginas)
+st.session_state['ano_selecionado'] = ano_selecionado_page
+
+# Verificar quais arquivos estão disponíveis
 arquivos_status = {}
 for tipo, nome in [("completo", "KE5Z.parquet"), ("main", "KE5Z_main.parquet"), ("others", "KE5Z_others.parquet")]:
-    caminho = os.path.join(base_path, "KE5Z", nome)
+    caminho = os.path.join(base_path, "KE5Z", str(ano_selecionado_page), nome)
     arquivos_status[tipo] = os.path.exists(caminho)
 
 # Opções disponíveis baseadas nos arquivos existentes
@@ -269,18 +302,24 @@ if is_cloud:
     st.sidebar.success("⚡ **Otimização Ativa**\n"
                       "Dashboard otimizado para um mês por vez!")
 
-# Carregar dados
+# Carregar dados com ano selecionado do session_state
 try:
-    df_total = load_data_optimized(opcao_selecionada)
-    st.sidebar.success("✅ Dados carregados com sucesso")
+    ano_selecionado = st.session_state.get('ano_selecionado', datetime.now().year)
+    df_total = load_data_optimized(opcao_selecionada, ano_selecionado)
     
-    # Log informativo
-    if not is_cloud:
-        st.sidebar.info(f"📊 {len(df_total)} registros carregados")
+    # Verificar se dados foram carregados
+    if df_total is not None and not df_total.empty:
+        st.sidebar.success(f"✅ Dados de {ano_selecionado} carregados")
+        
+        # Log informativo
+        if not is_cloud:
+            st.sidebar.info(f"📊 {len(df_total):,} registros carregados")
+    else:
+        raise ValueError("DataFrame vazio ou None")
         
 except FileNotFoundError:
     st.error("❌ Arquivo de dados não encontrado!")
-    st.error(f"🔍 Procurando por arquivos na pasta `KE5Z/`")
+    st.error(f"🔍 Procurando por arquivos na pasta `KE5Z/{ano_selecionado}/`")
     st.info("💡 **Soluções:**")
     st.info("1. Verifique se os arquivos parquet estão na pasta `KE5Z/`")
     st.info("2. Execute a extração de dados localmente")
