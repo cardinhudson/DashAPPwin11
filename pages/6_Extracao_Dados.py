@@ -746,6 +746,11 @@ if executar:
     verificar_arquivos_gerados()
     atualizar_progresso(100, "Concluído")
     render_logs()
+    
+    # Comemoração quando extração termina com sucesso! 🎈
+    if ok:
+        st.balloons()
+        st.success("🎉 Extração concluída com sucesso!")
 
 if aplicar_filtro:
     st.session_state.logs.clear()
