@@ -62,40 +62,35 @@ REM Passo 4: Copiar dados para _internal
 echo [4/6] Copiando dados para _internal...
 echo.
 
-REM Pasta KE5Z
-echo Copiando KE5Z...
-if exist "KE5Z" (
-    xcopy "KE5Z" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\" /E /I /Y >nul
-    echo [OK] KE5Z copiada
-) else (
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2025" 2>nul
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2026" 2>nul
-    echo [OK] Estrutura base KE5Z criada
-)
+REM CRIAR ESTRUTURA BASE (sempre criar, independente se pastas existem)
+echo Criando estrutura de pastas...
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2025" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2026" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2025\KE5Z" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2025\KSBB" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2026\KE5Z" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2026\KSBB" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\2025" 2>nul
+mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\2026" 2>nul
+echo [OK] Estrutura de pastas criada
 
-REM Pasta Extracoes
-echo Copiando Extracoes...
-if exist "Extracoes" (
-    xcopy "Extracoes" "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\" /E /I /Y >nul
-    echo [OK] Extracoes copiada
-) else (
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2025\KE5Z" 2>nul
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2025\KSBB" 2>nul
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2026\KE5Z" 2>nul
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\Extracoes\2026\KSBB" 2>nul
-    echo [OK] Estrutura base Extracoes criada
-)
+REM Pasta KE5Z - copiar arquivos Parquet e Excel (NAO copiar .txt)
+echo Copiando KE5Z (Parquet e Excel)...
+if exist "KE5Z\2025\*.parquet" xcopy "KE5Z\2025\*.parquet" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2025\" /I /Y >nul 2>&1
+if exist "KE5Z\2025\*.xlsx" xcopy "KE5Z\2025\*.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2025\" /I /Y >nul 2>&1
+if exist "KE5Z\2026\*.parquet" xcopy "KE5Z\2026\*.parquet" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2026\" /I /Y >nul 2>&1
+if exist "KE5Z\2026\*.xlsx" xcopy "KE5Z\2026\*.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\KE5Z\2026\" /I /Y >nul 2>&1
+echo [OK] KE5Z copiada (sem arquivos .txt)
 
-REM Pasta arquivos
-echo Copiando arquivos...
-if exist "arquivos" (
-    xcopy "arquivos" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\" /E /I /Y >nul
-    echo [OK] arquivos copiada
-) else (
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\2025" 2>nul
-    mkdir "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\2026" 2>nul
-    echo [OK] Estrutura base arquivos criada
-)
+REM Pasta Extracoes - NAO copiar .txt (sao muito grandes, usuario coloca depois)
+echo Extracoes: estrutura criada (arquivos .txt devem ser adicionados pelo usuario)
+echo [OK] Extracoes pronta (usuario deve colocar arquivos .txt)
+
+REM Pasta arquivos - copiar apenas Excel (ja tem estrutura criada acima)
+echo Copiando arquivos Excel...
+if exist "arquivos\2025\*.xlsx" xcopy "arquivos\2025\*.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\2025\" /I /Y >nul 2>&1
+if exist "arquivos\2026\*.xlsx" xcopy "arquivos\2026\*.xlsx" "dist\Dashboard_KE5Z_OFICIAL\_internal\arquivos\2026\" /I /Y >nul 2>&1
+echo [OK] arquivos Excel copiados
 
 REM Pasta pages
 echo Copiando pages...
